@@ -57,6 +57,18 @@ instance serialize (Rose a) | serialize a where
                                                     Just (right, rest`) -> Just ((Rose left right), rest`)
     read _             = Nothing 
     
+// Define equality for (Bin a) in order to test it
+    
+instance == (Bin a) | == a where
+    == Leaf Leaf = True
+    == (Bin left1 mid1 right1) (Bin left2 mid2 right2) = left1 == left2 && mid1 == mid2 && right1 == right2
+    == _ _ = False
+    
+// Define equality for (Rose a) in order to test it
+
+instance == (Rose a) | == a where 
+    == (Rose left1 right1) (Rose left2 right2) = left1 == left2 && right1 == right2
+    == _ _ = False
     
 test :: a -> (Bool, [String]) | serialize, ==a
 test a = (isJust r && fst jr ==a && isEmpty (tl (snd jr)), s)
@@ -65,4 +77,8 @@ where
     r = read s
     jr = fromJust r
 
-Start = map test [[1, 2]]
+//Start = map test [True, False]
+//Start = map test [1, 2, 3]
+//Start = map test [[1, 2, 3]]
+//Start = map test [Bin Leaf 77 (Bin Leaf 5 Leaf)]
+Start = map test [Rose 777 [Rose 77 [Rose 7 []]]]
