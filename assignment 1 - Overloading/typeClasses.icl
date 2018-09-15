@@ -38,4 +38,4 @@ where
     r = read s
     jr = fromJust r
 
-Start = map test [[]]
+Start = map test [[1, 2]]
