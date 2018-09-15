@@ -1,5 +1,5 @@
 // Brigel Pineti s1005549
-// Tim lastName studentID
+// Tim Turksema s1013838
 
 module kinds
 
