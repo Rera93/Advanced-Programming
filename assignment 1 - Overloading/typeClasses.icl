@@ -31,6 +31,22 @@ instance serialize [a] | serialize a where
                                                      Just (x`, xs`) -> Just ([x : x`], xs`)
     read  _                = Nothing
     
+:: Bin a = Leaf | Bin (Bin a) a (Bin a)
+
+instance serialize (Bin a) | serialize a where
+    write Leaf c        = ["Leaf" : c]
+    write (Bin l m r) c = ["Bin" : write l (write m (write r c))]
+    read ["Leaf" : r]   = Just (Leaf, r)
+    read ["Bin"  : r]   = case read r of 
+                              Nothing -> Nothing 
+                              Just (left, rest) -> case read rest of
+                                                   Nothing -> Nothing 
+                                                   Just (mid, rest`) -> case read rest` of
+                                                                            Nothing -> Nothing 
+                                                                            Just (right, rest``) -> Just (Bin left mid right, rest``)
+                                                                             
+    
+    
 test :: a -> (Bool, [String]) | serialize, ==a
 test a = (isJust r && fst jr ==a && isEmpty (tl (snd jr)), s)
 where
