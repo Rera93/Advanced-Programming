@@ -3,7 +3,7 @@
 
 module typeClasses
 
-import StdMaybe, StdString, StdBool, StdEnv
+import StdMaybe, StdString, StdBool, StdEnv, StdInt
 
 class serialize a where
     write :: a [String] -> [String]
@@ -15,6 +15,11 @@ instance serialize Bool where
     read ["False" : r] = Just (False, r)
     read _             = Nothing
     
+instance serialize Int where
+    write b c    = [toString b:c]
+    read [n : r] = Just (toInt n, r)
+    read _       = Nothing
+    
 test :: a -> (Bool, [String]) | serialize, ==a
 test a = (isJust r && fst jr ==a && isEmpty (tl (snd jr)), s)
 where
@@ -22,4 +27,4 @@ where
     r = read s
     jr = fromJust r
 
-Start = map test [True, False]
+Start = map test [1, 2, 3, 4]
