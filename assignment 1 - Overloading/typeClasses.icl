@@ -1,5 +1,5 @@
 // Brigel Pineti s1005549
-// Tim lastName studentID
+// Tim Turksema s1013838
 
 module typeClasses
 
@@ -43,10 +43,19 @@ instance serialize (Bin a) | serialize a where
                                                    Nothing -> Nothing 
                                                    Just (mid, rest`) -> case read rest` of
                                                                             Nothing -> Nothing 
-                                                                            Just (right, rest``) -> Just (Bin left mid right, rest``)
+                                                                            Just (right, rest``) -> Just ((Bin left mid right), rest``)
     read _              = Nothing
                                                                              
+:: Rose a = Rose a [Rose a]
 
+instance serialize (Rose a) | serialize a where 
+    write (Rose l r) c = ["Rose" : write l (write r c)]
+    read ["Rose" : r] = case read r of
+                            Nothing -> Nothing
+                            Just (left, rest) -> case read rest of
+                                                    Nothing -> Nothing
+                                                    Just (right, rest`) -> Just ((Rose left right), rest`)
+    read _             = Nothing 
     
     
 test :: a -> (Bool, [String]) | serialize, ==a
