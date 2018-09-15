@@ -1,5 +1,5 @@
 // Brigel Pineti s1005549
-// Tim Turksema s1013838
+// Tim lastName studentID
 
 module typeClasses
 
@@ -44,7 +44,9 @@ instance serialize (Bin a) | serialize a where
                                                    Just (mid, rest`) -> case read rest` of
                                                                             Nothing -> Nothing 
                                                                             Just (right, rest``) -> Just (Bin left mid right, rest``)
+    read _              = Nothing
                                                                              
+
     
     
 test :: a -> (Bool, [String]) | serialize, ==a
