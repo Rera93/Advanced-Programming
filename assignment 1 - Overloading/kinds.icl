@@ -13,5 +13,15 @@ import StdEnv
 :: T3 a b c = C3 (a b c)
 :: T4 a b c = C4 (a (b c))
 
+// Bool is of kind *
+// Bin is of kind * -> *
+// Rose is of kind * -> *
+// Bin Int is of kind *
+// Tree is of kind * -> * -> *
+// T1 is of kind (* -> *) -> * -> *
+// T2 is of kind (((* -> *) -> * -> *) -> *) -> *
+// T3 is of kind (* -> * -> * -> ) -> *
+// T4 is of kind (((* -> *) -> *)) -> *
+
 Start = "True"
 
