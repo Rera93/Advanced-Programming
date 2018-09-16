@@ -11,5 +11,14 @@ class Container t where
     Cshow     ::   (t a) -> [String] | toString a
     Cnew      :: t a
     
-Start = "False" 
+instance Container [] where
+    Cinsert i []     = [i]
+    Cinsert i list   = [i : list]
+    Ccontains i []   = False
+    Ccontains i list = isMember i list
+    Cshow []         = []
+    Cshow list       = map toString list
+    Cnew             = []
+    
+Start = (Ccontains 3 c, Cshow c, Cinsert 0 c) where c = [1..5] 
 
