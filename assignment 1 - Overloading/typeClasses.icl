@@ -21,10 +21,10 @@ instance serialize Int where
     read _       = Nothing
     
 instance serialize [a] | serialize a where
-    write [n : ns] c       = ["NonEmpty" : (write n (write ns c))]
-    write [] c             = ["Empty" : c]
-    read  ["Empty" : r]    = Just ([], r)
-    read  ["NonEmpty" : r] = case read r of
+    write [n : ns] c       = ["Nil" : (write n (write ns c))]
+    write [] c             = ["Cons" : c]
+    read  ["Nil" : r]    = Just ([], r)
+    read  ["Cons" : r] = case read r of
                                  Nothing -> Nothing
                                  Just (x, xs) -> case read xs of
                                                      Nothing -> Nothing
@@ -81,4 +81,4 @@ where
 //Start = map test [1, 2, 3]
 //Start = map test [[1, 2, 3]]
 //Start = map test [Bin Leaf 77 (Bin Leaf 5 Leaf)]
-Start = map test [Rose 777 [Rose 77 [Rose 7 []]]]
+Start = map test [Rose 777 [Rose 77 [Rose 7 [], Rose 77 []]]]
