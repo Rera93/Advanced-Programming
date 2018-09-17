@@ -3,7 +3,7 @@
 
 module typeClasses
 
-import StdMaybe, StdString, StdBool, StdEnv, StdInt, StdList, StdChar, StdTuple, StdOverloaded
+import StdMaybe, StdEnv
 
 class serialize a where
     write :: a [String] -> [String]
