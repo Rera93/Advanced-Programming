@@ -19,9 +19,9 @@ import StdEnv
 // Bin Int is of kind *
 // Tree is of kind * -> * -> *
 // T1 is of kind (* -> *) -> * -> *
-// T2 is of kind (((* -> *) -> * -> *) -> *) -> *
-// T3 is of kind (* -> * -> * -> ) -> *
-// T4 is of kind (((* -> *) -> *)) -> *
+// T2 is of kind (* -> *) -> (* -> *) -> * -> *
+// T3 is of kind (* -> *) -> * -> * -> *
+// T4 is of kind (* -> *) -> (* -> *) -> * -> *
 
 Start = "True"
 
