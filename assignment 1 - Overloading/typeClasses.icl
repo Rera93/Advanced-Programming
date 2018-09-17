@@ -21,8 +21,8 @@ instance serialize Int where
     read _       = Nothing
     
 instance serialize [a] | serialize a where
-    write [n : ns] c       = ["Nil" : (write n (write ns c))]
-    write [] c             = ["Cons" : c]
+    write [n : ns] c       = ["Cons" : (write n (write ns c))]
+    write [] c             = ["Nil" : c]
     read  ["Nil" : r]    = Just ([], r)
     read  ["Cons" : r] = case read r of
                                  Nothing -> Nothing
