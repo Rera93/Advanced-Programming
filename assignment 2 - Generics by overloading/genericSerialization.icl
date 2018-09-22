@@ -35,7 +35,7 @@ toBin :: (BinG a) -> Bin a
 toBin (LEFT (CONS _ UNIT))                 = Leaf
 toBin (RIGHT (CONS _ (PAIR l (PAIR m r)))) = Bin l m r  
 
-//2.1
+// 2.1 (with generic info) 
 
 instance serialize Int where
     write b c    = [toString b:c]
@@ -93,6 +93,8 @@ instance serialize (Bin a) | serialize a where
                        Nothing         -> Nothing 
                        Just (l`, rest) -> Just (toBin l`, rest) 
                        
+// 2.2 (without generic info)
+                       
 // Define equality for (Bin a) in order to test it
     
 instance == (Bin a) | == a where
@@ -107,7 +109,5 @@ where
     r = read s
     jr = fromJust r
 
-//Start = fromBin (Bin (Bin Leaf 3 Leaf) 4 Leaf)
-//Start = write (CONS "rera" 1) ["1", "2"] 
 //Start = map test [[1, 2, 3]]
 Start = map test [Bin Leaf 77 (Bin Leaf 5 Leaf)]
