@@ -37,4 +37,61 @@ toBin (RIGHT (CONS _ (PAIR l (PAIR m r)))) = Bin l m r
 
 //2.1
 
-Start = fromBin (Bin (Bin Leaf 3 Leaf) 4 Leaf) 
+instance serialize Int where
+    write b c    = [toString b:c]
+    read [n : r] = Just (toInt n, r)
+    read _       = Nothing  
+    
+instance serialize String where
+	write s ss  = [s:ss]
+	read [s:ss] = Just (s, ss)
+	read _      = Nothing
+
+instance serialize UNIT where
+    write UNIT list      = ["UNIT" : list]
+    read ["UNIT" : list] = Just (UNIT, list)
+    read _               = Nothing
+    
+instance serialize (PAIR a b) | serialize a & serialize b where
+    write (PAIR x y) list = ["(PAIR" : write x (write y [")" : list])]
+    read ["(PAIR" : rest] = case read rest of
+                               Nothing          -> Nothing
+                               Just (x`, rest`) -> case read rest` of
+                                                     Nothing                  -> Nothing
+                                                     Just (y`,[")" : rest``]) -> Just ((PAIR x` y`), rest``)
+    read _                = Nothing  
+    
+instance serialize (EITHER a b) | serialize a & serialize b where
+    write (LEFT a) list    = ["(LEFT" : write a [")" : list]]
+    write (RIGHT b) list   = ["(RIGHT" : write b [")" : list]]
+    read ["(LEFT" : rest]  = case read rest of 
+                                 Nothing                 -> Nothing 
+                                 Just (x, [")" : rest`]) -> Just (LEFT x, rest`)
+    read ["(RIGHT" : rest] = case read rest of
+                                 Nothing                 -> Nothing
+                                 Just (y, [")" : rest`]) -> Just (RIGHT y, rest`)
+    read _                 = Nothing
+    
+instance serialize (CONS a) | serialize a where
+    write (CONS name x) list = ["(CONS" : write name (write x [")" : list])]
+    read ["(CONS" : rest]    = case read rest of 
+                                   Nothing            -> Nothing
+                                   Just (naam, rest`) -> case read rest` of
+                                                             Nothing                  -> Nothing
+                                                             Just (x, [")" : rest``]) -> Just ((CONS naam x), rest``) 
+    read _                   = Nothing
+     
+    
+    
+
+    
+    
+test :: a -> (Bool, [String]) | serialize, ==a
+test a = (isJust r && fst jr ==a && isEmpty (tl (snd jr)), s)
+where
+    s = write a ["\n"]
+    r = read s
+    jr = fromJust r
+
+//Start = fromBin (Bin (Bin Leaf 3 Leaf) 4 Leaf)
+Start = write (CONS "rera" 1) ["1", "2"] 
