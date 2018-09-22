@@ -81,10 +81,24 @@ instance serialize (CONS a) | serialize a where
                                                              Just (x, [")" : rest``]) -> Just ((CONS naam x), rest``) 
     read _                   = Nothing
      
+instance serialize [a] | serialize a where
+    write l list = write (fromList l) list
+    read list    = case read list of
+                        Nothing         -> Nothing
+                        Just (l`, rest) -> Just (toList l`, rest)
+                       
+instance serialize (Bin a) | serialize a where
+    write l list = write (fromBin l) list
+    read list    = case read list of
+                       Nothing         -> Nothing 
+                       Just (l`, rest) -> Just (toBin l`, rest) 
+                       
+// Define equality for (Bin a) in order to test it
     
-    
-
-    
+instance == (Bin a) | == a where
+    == Leaf Leaf = True
+    == (Bin left1 mid1 right1) (Bin left2 mid2 right2) = left1 == left2 && mid1 == mid2 && right1 == right2
+    == _ _ = False  
     
 test :: a -> (Bool, [String]) | serialize, ==a
 test a = (isJust r && fst jr ==a && isEmpty (tl (snd jr)), s)
@@ -94,4 +108,6 @@ where
     jr = fromJust r
 
 //Start = fromBin (Bin (Bin Leaf 3 Leaf) 4 Leaf)
-Start = write (CONS "rera" 1) ["1", "2"] 
+//Start = write (CONS "rera" 1) ["1", "2"] 
+//Start = map test [[1, 2, 3]]
+Start = map test [Bin Leaf 77 (Bin Leaf 5 Leaf)]
