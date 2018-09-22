@@ -14,11 +14,10 @@ class serialize a where
 :: PAIR a b = PAIR a b
 :: CONS a = CONS String a
 
-:: List a = Nil | Cons a (List a)
+//Found the error, it was using syntax ListG a = instead of ListG a :==  (Delete comment when you see it)
 :: Bin a = Leaf | Bin (Bin a) a (Bin a)
-
-::ListG a = EITHER (CONS UNIT) (CONS (PAIR a [a]))
-::BinG a = EITHER (CONS UNIT) (CONS (PAIR (Bin a) (PAIR a (Bin a))))
+:: ListG a :== EITHER (CONS UNIT) (CONS (PAIR a [a]))
+:: BinG a :== EITHER (CONS UNIT) (CONS (PAIR (Bin a) (PAIR a (Bin a))))
 
 fromList :: [a] -> ListG a
 fromList [] = LEFT (CONS "Nil" UNIT)
@@ -28,11 +27,14 @@ toList :: (ListG a) -> [a]
 toList (LEFT (CONS _ UNIT)) = []
 toList (RIGHT (CONS _ (PAIR a as))) = [a:as]
 
-//fromBin :: (Bin a) -> BinG a
-//toBin :: (BinG a) -> Bin a
+fromBin :: (Bin a) -> BinG a
+fromBin Leaf        = LEFT (CONS "Leaf" UNIT)
+fromBin (Bin l m r) = RIGHT (CONS "Bin" (PAIR l (PAIR m r))) 
 
-
+toBin :: (BinG a) -> Bin a
+toBin (LEFT (CONS _ UNIT))                 = Leaf
+toBin (RIGHT (CONS _ (PAIR l (PAIR m r)))) = Bin l m r  
 
 //2.1
 
-Start = toList (fromList [1..4])
+Start = fromBin (Bin (Bin Leaf 3 Leaf) 4 Leaf) 
