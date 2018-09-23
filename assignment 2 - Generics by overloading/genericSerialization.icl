@@ -47,8 +47,10 @@ instance serialize String where
 	read [s:ss] = Just (s, ss)
 	read _      = Nothing
 
+/* Commented to execute exercise 2.2 (without generic info) 
+
 instance serialize UNIT where
-    write UNIT list      = ["UNIT" : list]
+    write _ list      = ["UNIT" : list]
     read ["UNIT" : list] = Just (UNIT, list)
     read _               = Nothing
     
@@ -80,6 +82,8 @@ instance serialize (CONS a) | serialize a where
                                                              Nothing                  -> Nothing
                                                              Just (x, [")" : rest``]) -> Just ((CONS naam x), rest``) 
     read _                   = Nothing
+
+ */ 
      
 instance serialize [a] | serialize a where
     write l list = write (fromList l) list
@@ -91,10 +95,39 @@ instance serialize (Bin a) | serialize a where
     write l list = write (fromBin l) list
     read list    = case read list of
                        Nothing         -> Nothing 
-                       Just (l`, rest) -> Just (toBin l`, rest) 
-                       
+                       Just (l`, rest) -> Just (toBin l`, rest)                   
+                     
 // 2.2 (without generic info)
-                       
+
+instance serialize UNIT where
+    write _ list = list
+    read list    = Just (UNIT, list)
+    
+instance serialize (PAIR a b) | serialize a & serialize b where 
+    write (PAIR x y) list = ["(" : write x (write y [")" : list])] 
+    read ["(" : rest]     = case read rest of
+                                Nothing         -> Nothing
+                                Just (x, rest`) -> case read rest` of
+                                                       Nothing         -> Nothing
+                                                       Just (y, [")" : rest``]) -> Just ((PAIR x y), rest``)
+    read _                = Nothing
+    
+instance serialize (EITHER a b) | serialize a & serialize b where
+    write (LEFT x) list  = write x list
+    write (RIGHT y) list = write y list
+    read list            = case read list of
+                               Just (x, rest) -> Just ((LEFT x), rest)
+                               Nothing        -> case read list of
+                                                     Just (y, rest) -> Just ((RIGHT y), rest)
+                                                     Nothing        -> Nothing
+      
+instance serialize (CONS a) | serialize a where
+    write (CONS name x) c = ["(", name : write x [")":c]]
+	read ["(", name:rest] = case read rest of
+		                        Just (x, [")":rest`]) -> Just (CONS name x, rest`)
+		                        _ -> Nothing
+	read _                = Nothing
+                     
 // Define equality for (Bin a) in order to test it
     
 instance == (Bin a) | == a where
@@ -102,12 +135,24 @@ instance == (Bin a) | == a where
     == (Bin left1 mid1 right1) (Bin left2 mid2 right2) = left1 == left2 && mid1 == mid2 && right1 == right2
     == _ _ = False  
     
-test :: a -> (Bool, [String]) | serialize, ==a
-test a = (isJust r && fst jr ==a && isEmpty (tl (snd jr)), s)
-where
+test :: a -> ([String],[String]) | serialize, == a
+test a = 
+  (if (isJust r)
+    (if (fst jr == a)
+      (if (isEmpty (tl (snd jr)))
+        ["Oke "]
+        ["Fail: not all input is consumed! ":snd jr])
+      ["Fail: Wrong result ":write (fst jr) []])
+    ["Fail: read result is Nothing "]
+  , ["write produces ": s]
+  )
+  where
     s = write a ["\n"]
     r = read s
     jr = fromJust r
 
+
 //Start = map test [[1, 2, 3]]
-Start = map test [Bin Leaf 77 (Bin Leaf 5 Leaf)]
+//Start = write (CONS "rera" 2) ["1", "3"]
+//Start = write (PAIR 1 2) ["3", "4"]
+Start = map test [(Bin Leaf 5 Leaf)]
