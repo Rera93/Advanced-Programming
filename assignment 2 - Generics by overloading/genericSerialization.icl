@@ -104,13 +104,12 @@ instance serialize UNIT where
     read list    = Just (UNIT, list)
     
 instance serialize (PAIR a b) | serialize a & serialize b where 
-    write (PAIR x y) list = ["(" : write x (write y [")" : list])] 
-    read ["(" : rest]     = case read rest of
-                                Nothing         -> Nothing
-                                Just (x, rest`) -> case read rest` of
-                                                       Nothing         -> Nothing
-                                                       Just (y, [")" : rest``]) -> Just ((PAIR x y), rest``)
-    read _                = Nothing
+    write (PAIR x y) list = write x (write y list) 
+    read list             = case read list of
+                                Just (x, rest)  -> case read rest of
+                                                       Just (y, rest`) -> Just ((PAIR x y), rest`)
+                                                       _ -> Nothing
+                                _ -> Nothing
     
 instance serialize (EITHER a b) | serialize a & serialize b where
     write (LEFT x) list  = write x list
@@ -152,7 +151,11 @@ test a =
     jr = fromJust r
 
 
-//Start = map test [[1, 2, 3]]
 //Start = write (CONS "rera" 2) ["1", "3"]
 //Start = write (PAIR 1 2) ["3", "4"]
-Start = map test [(Bin Leaf 5 Leaf)]
+Start =[ test (Bin Leaf 5 Leaf), 
+         test [1, 2, 3],
+         test (Bin Leaf 5 (Bin Leaf 3 Leaf)),
+         test ([[1, 2], []]),
+         test (Bin (Bin Leaf 3 Leaf) 4 Leaf)
+       ]
