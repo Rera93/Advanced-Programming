@@ -15,6 +15,9 @@ module serialize3Start
 
 import StdEnv, StdMaybe
 
+:: Write a :== a [String] -> [String]
+:: Read a  :== [String] -> Maybe (a, [String])
+
 // use this as serialize0 for kind *
 class serialize a where
   write :: a [String] -> [String]
@@ -27,8 +30,8 @@ class serialize1 t where
   read1  :: (Read a) [String] -> Maybe (t a,[String])
   
 class serialize2 t where
-  write :: (Write a) (Write b) t a b [String] -> [String]
-  read  :: (Read a) (Read b) [String] -> Maybe (t a b,[String])
+  write2 :: (Write a) (Write b) (t a b) [String] -> [String]
+  read2  :: (Read a) (Read b) [String] -> Maybe (t a b,[String])
 
 instance serialize Bool where
   write b c = [toString b:c]
@@ -59,6 +62,11 @@ instance serialize Int where
         = Just (int, rest)
         = r
     match _ r bool = r
+    
+instance serialize String where
+	write s ss  = [s:ss]
+	read [s:ss] = Just (s, ss)
+	read _      = Nothing
 
 // ---
 
@@ -68,6 +76,35 @@ instance serialize Int where
 :: CONS   a   = CONS String a
 
 // ---
+
+instance serialize UNIT where
+    write UNIT list = list
+    read list       = Just (UNIT, list)
+    
+instance serialize2 EITHER where
+    write2 f g (LEFT x) list  = f x list
+    write2 f g (RIGHT y) list = g y list
+    read2 f g list            = case f list of
+                                    Just (x, rest) -> Just (LEFT x, rest)
+                                    Nothing       -> case g list of
+                                                         Just (y, rest) -> Just (RIGHT y, rest)
+                                                         Nothing        -> Nothing 
+                                                         
+instance serialize2 PAIR where
+    write2 f g (PAIR x y) list = f x (g y list)
+    read2 f g list             = case f list of
+                                     Just (x, rest) -> case g list of
+                                                           Just (y, rest`) -> Just ((PAIR x y), rest`)
+                                                           _               -> Nothing
+                                     _              -> Nothing
+                                     
+instance serialize1 CONS where
+    write1 f (CONS name x) list = write name (write "(" (f x [")" : list]))
+    read1 f [name : "(" : list] = case f list of
+                                      Just (x, rest) -> Just ((CONS name x), rest)
+                                      _              -> Nothing
+    read1 f _                   = Nothing
+                                     
 
 :: ListG a :== EITHER (CONS UNIT) (CONS (PAIR a [a]))
 
