@@ -119,9 +119,35 @@ toList (RIGHT (CONS ConsString (PAIR a x))) = [a:x]
 NilString  :== "Nil"
 ConsString :== "Cons"
 
-instance serialize [a] | serialize a where 	// to be improved
- write a s = s			
- read  s   = Nothing
+class serializeCONS a where
+    writeCons :: (Write a) (CONS a) [String] -> [String]
+    readCons  :: String (Read a) [String] -> Maybe (CONS a, [String])
+    
+instance serializeCONS a where
+  writeCons w (CONS cons a) c = ["(":cons:w a [")":c]]
+  readCons c ra ["(":cons:s] 
+    | c == cons = case ra s of
+      Just (a, [")":s]) = Just(CONS cons a, s)
+      _ = Nothing
+      = Nothing
+  readCons _ _ _ = Nothing
+
+instance serializeCONS UNIT where
+    writeCons wa (CONS name x) list = [name : list]
+    readCons name ra [n : rest] | name == n
+        = Just (CONS n UNIT, rest)
+    readCons _ _ _ = Nothing   
+
+instance serialize [a] | serialize a where
+    write a list = write1 write a list			
+    read list    = read1 read list
+ 
+instance serialize1 [] where
+    write1 w a list = write2 (writeCons write) (writeCons (write2 w (write1 w))) (fromList a) list 
+    read1 r list    = case read2 (readCons NilString read) (readCons ConsString (read2 r (read1 r))) list of
+                          Just (r`, rest) -> Just (toList r`, rest)
+                          Nothing         -> Nothing
+
 
 // ---
 
