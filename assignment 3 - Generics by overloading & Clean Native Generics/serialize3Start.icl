@@ -40,17 +40,7 @@ instance serialize Bool where
 		match [string: rest] r bool | toString bool == string
 				= Just (bool, rest)
 				= r
-		match _ r bool = r
-
-//instance serialize2 EITHER where 
-// write2 wa wb (LEFT a) c = wa a c
-// write2 wa wb (RIGHT b) c = wb b c
-// read ra rb l = case ra l of 
-// 	Just (left, rest) -> Just (LEFT left, rest)
-// 	Nothing 		-> case rb l of
-// 		Just (right, `rest) -> Just (RIGHT right, `rest)
-// 		Nothing -> Nothing     
- 	
+		match _ r bool = r   
 
 instance serialize Int where
   write i c = [toString i:c]
@@ -198,10 +188,16 @@ instance == Coin where
   (==) Head Head = True
   (==) Tail Tail = True
   (==) _    _    = False
+  
+HeadString :== "Head"
+TailString  :== "Tail"
 
 instance serialize Coin where
-	write c s = s
-	read    l = Nothing
+	write a list = write2 (writeCons write) (writeCons write) (fromCoin a) list
+	read list = case read2 (readCons HeadString read) (readCons TailString read) list of
+	                Just (a, rest) -> Just (toCoin a, rest)
+	                Nothing        -> Nothing
+	 
 
 /*
 	Define a special purpose version for this type that writes and reads
