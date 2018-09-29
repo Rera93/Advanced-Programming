@@ -171,9 +171,15 @@ instance == (Bin a) | == a where
   (==) (Bin l a r) (Bin k b s) = l == k && a == b && r == s
   (==) _ _ = False
 
-instance serialize (Bin a) | serialize a where	// to be improved
-	write b s = s
-	read    l = Nothing
+instance serialize (Bin a) | serialize a where
+	write a list = write1 write a list
+	read list = read1 read list
+	
+instance serialize1 Bin where
+    write1 w a list = write2 (writeCons write) (writeCons (write2 (write1 w) (write2 w (write1 w)))) (fromBin a) list
+    read1 r list    = case read2 (readCons LeafString read) (readCons BinString (read2 (read1 r) (read2 r (read1 r)))) list of
+                          Just (a, rest) -> Just (toBin a, rest)
+                          Nothing        -> Nothing 
 
 // ---
 
