@@ -16,22 +16,60 @@ module serialize3Start
 import StdEnv, StdMaybe
 
 :: Write a :== a [String] -> [String]
-:: Read a  :== [String] -> Maybe (a, [String])
+:: Read a  :== [String] -> Maybe (a,[String])
 
-// use this as serialize0 for kind *
 class serialize a where
   write :: a [String] -> [String]
   read  :: [String] -> Maybe (a,[String])
 
-// ---
-
 class serialize1 t where
   write1 :: (Write a) (t a) [String] -> [String]
-  read1  :: (Read a) [String] -> Maybe (t a,[String])
+  read1  :: (Read a) [String] -> Maybe (t a, [String])
   
 class serialize2 t where
   write2 :: (Write a) (Write b) (t a b) [String] -> [String]
-  read2  :: (Read a) (Read b) [String] -> Maybe (t a b,[String])
+  read2  :: (Read a) (Read b) [String] -> Maybe (t a b, [String])
+  
+instance serialize UNIT where
+    write _ list = list
+    read list    = Just (UNIT, list)
+ 
+instance serialize (EITHER a b) | serialize a & serialize b where
+    write a list = write2 write write a list
+    read list    = read2 read read list  
+    
+instance serialize2 EITHER where
+    write2 f g (LEFT x) list  = f x list
+    write2 f g (RIGHT y) list = g y list
+    read2 f g list            = case f list of
+                                    Just (x, rest) -> Just (LEFT x, rest)
+                                    Nothing       -> case g list of
+                                                         Just (y, rest) -> Just (RIGHT y, rest)
+                                                         Nothing        -> Nothing 
+
+instance serialize (PAIR a b) | serialize a & serialize b where
+    write a list = write2 write write a list
+    read list    = read2 read read list
+
+                                                         
+instance serialize2 PAIR where
+    write2 f g (PAIR x y) list = f x (g y list)
+    read2 f g list             = case f list of
+                                     Just (x, rest) -> case g list of
+                                                           Just (y, rest`) -> Just ((PAIR x y), rest`)
+                                                           _               -> Nothing
+                                     _              -> Nothing
+
+instance serialize (CONS a) | serialize a where
+    write a list = write1 write a list
+    read list    = read1 read list
+                                    
+instance serialize1 CONS where
+    write1 f (CONS name x) list = write name (write "(" (f x [")" : list]))
+    read1 f [name:"(":list] = case f list of
+                                      Just (x, rest) -> Just ((CONS name x), rest)
+                                      _              -> Nothing
+    read1 f _                   = Nothing
 
 instance serialize Bool where
   write b c = [toString b:c]
@@ -67,33 +105,6 @@ instance serialize String where
 
 // ---
 
-instance serialize UNIT where
-    write UNIT list = list
-    read list       = Just (UNIT, list)
-    
-instance serialize2 EITHER where
-    write2 f g (LEFT x) list  = f x list
-    write2 f g (RIGHT y) list = g y list
-    read2 f g list            = case f list of
-                                    Just (x, rest) -> Just (LEFT x, rest)
-                                    Nothing       -> case g list of
-                                                         Just (y, rest) -> Just (RIGHT y, rest)
-                                                         Nothing        -> Nothing 
-                                                         
-instance serialize2 PAIR where
-    write2 f g (PAIR x y) list = f x (g y list)
-    read2 f g list             = case f list of
-                                     Just (x, rest) -> case g list of
-                                                           Just (y, rest`) -> Just ((PAIR x y), rest`)
-                                                           _               -> Nothing
-                                     _              -> Nothing
-                                     
-instance serialize1 CONS where
-    write1 f (CONS name x) list = write name (write "(" (f x [")" : list]))
-    read1 f [name : "(" : list] = case f list of
-                                      Just (x, rest) -> Just ((CONS name x), rest)
-                                      _              -> Nothing
-    read1 f _                   = Nothing
                                      
 
 :: ListG a :== EITHER (CONS UNIT) (CONS (PAIR a [a]))
@@ -114,29 +125,30 @@ class serializeCONS a where
     readCons  :: String (Read a) [String] -> Maybe (CONS a, [String])
     
 instance serializeCONS a where
-  writeCons w (CONS cons a) c = ["(":cons:w a [")":c]]
+  writeCons w (CONS cons a) c = ["(", cons : (w a [")":c])]
   readCons c ra ["(":cons:s] 
     | c == cons = case ra s of
-      Just (a, [")":s]) = Just(CONS cons a, s)
-      _ = Nothing
-      = Nothing
+                      Just (a, [")":s]) -> Just(CONS cons a, s)
+                      _                 -> Nothing
+    | otherwise = Nothing 
   readCons _ _ _ = Nothing
 
 instance serializeCONS UNIT where
-    writeCons wa (CONS name x) list = [name : list]
-    readCons name ra [n : rest] | name == n
-        = Just (CONS n UNIT, rest)
-    readCons _ _ _ = Nothing   
+  writeCons _ (CONS c _) s = [c:s]
+  readCons c ra [s:l] 
+    | c == s = Just (CONS s UNIT, l)
+  readCons _ _ _ = Nothing
 
-instance serialize [a] | serialize a where
+instance serialize [a] | serialize a where  
     write a list = write1 write a list			
     read list    = read1 read list
- 
+    
 instance serialize1 [] where
     write1 w a list = write2 (writeCons write) (writeCons (write2 w (write1 w))) (fromList a) list 
     read1 r list    = case read2 (readCons NilString read) (readCons ConsString (read2 r (read1 r))) list of
                           Just (r`, rest) -> Just (toList r`, rest)
                           Nothing         -> Nothing
+
 
 
 // ---
@@ -193,7 +205,7 @@ HeadString :== "Head"
 TailString  :== "Tail"
 
 instance serialize Coin where
-	write a list = write2 (writeCons write) (writeCons write) (fromCoin a) list
+    write a list = write2 (writeCons write) (writeCons write) (fromCoin a) list
 	read list = case read2 (readCons HeadString read) (readCons TailString read) list of
 	                Just (a, rest) -> Just (toCoin a, rest)
 	                Nothing        -> Nothing
@@ -203,12 +215,32 @@ instance serialize Coin where
 	Define a special purpose version for this type that writes and reads
 	the value (7,True) as ["(","7",",","True",")"]
 */
-instance serialize (a,b) | serialize a & serialize b where
-	write (a,b) c = c
-	read _ = Nothing
 
+/*
+:: TupleG a b :== PAIR a b
+
+fromTuple :: (a,b) -> TupleG a b
+fromTuple (a,b) = PAIR a b
+
+toTuple :: (TupleG a b) -> (a,b)
+toTuple (PAIR a b) = (a,b)
+
+instance serialize (a,b) | serialize a & serialize b where
+	write tuple list = write2 write write tuple list 
+	read list        = read2 read read list
+
+instance serialize2 (,) where
+    write2 wa wb (a,b) list  = ["(" : wa a ["," : wb b [")" : list]]]
+    read2 ra rb ["(" : rest] = case read2 ra rest of
+                               Just (a, ["," : rest`]) -> case read2 rb rest` of
+                                                              Just (b, [")" : rest``]) -> Just (toTuple (PAIR a b), rest``)
+                                                              _                        -> Nothing
+                               -                       -> Nothing
+    read2 _ _ _              = Nothing 
+*/
 // ---
 // output looks nice if compiled with "Basic Values Only" for console in project options
+
 Start = 
   [test True
   ,test False
@@ -224,8 +256,8 @@ Start =
   ,test [Bin (Bin Leaf [1] Leaf) [2] (Bin Leaf [3] (Bin (Bin Leaf [4,5] Leaf) [6,7] (Bin Leaf [8,9] Leaf)))]
   ,test Head
   ,test Tail
-  ,test (7,True)
-  ,test (Head,(7,[Tail]))
+  //,test (7,True)
+  //,test (Head,(7,[Tail]))
   ,["End of the tests.\n"]
   ]
 
