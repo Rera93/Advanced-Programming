@@ -80,10 +80,21 @@ gPickFavourite students = enterChoice "Choose your favourite student, but generi
 pickPartners :: [Student] -> Task [Student]
 pickPartners students = enterMultipleChoice "Choose partners" [ChooseFromGrid (\({name,snum,bama,year})->"Student: " + name + ", " + gToString{|*|} bama)] students
 //8
+updateName :: Student -> Task Student
+updateName student = updateInformation ("Change only the name of " +++ gToString{|*|} student) [UpdateAs (\s -> s.Student.name) (\s newName -> {name = newName, snum = s.snum, bama = s.bama, year = s.year})] student
 
 
 Start :: *World -> *World
-Start world = startEngine (updateStudentInfo (head (tail (tail students)))) world
+//Start world = startEngine addStudent world
+//Start world = startEngine addStudents world
+//Start world = startEngine (updateStudentInfo student) world
+Start world = startEngine (pickFavourite students) world
+//Start world = startEngine (pickFavouriteNameOnly students) world
+//Start world = startEngine (gPickFavourite students) world
+//Start world = startEngine (pickPartners students) world
+//Start world = startEngine (updateName student) world
+
+//Start world = startEngine (updateStudentInfo (head (tail (tail students)))) world
 
 student :: Student
 student = students !! 0
