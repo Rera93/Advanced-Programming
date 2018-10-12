@@ -4,3 +4,8 @@
 *.exe
 *.prj
 *.prp
+*.sapl
+*.tcl
+*-www/
+*-sapl/
+Clean System Files/
