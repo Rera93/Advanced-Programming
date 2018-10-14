@@ -1,3 +1,6 @@
+// Brigel Pineti s1005549
+// Tim Turksema s1013838
+
 module skeleton4
 
 import iTasks
@@ -63,15 +66,23 @@ taskQuestion = taskLogin >>* [ OnAction (Action "Login") (hasValue (\user -> red
 
 redirect :: Login (Shared [Question]) -> Task [Question]
 redirect {username, function} shared
-    | function == Student = adminTask username shared //studentTask not yet implemented
+    | function == Student = studentTask username shared
     | function == Teacher = teacherTask username shared
     | function == Admin   = adminTask username shared
-                    
-/*isValidUsername :: Login -> Bool
-isValidUsername {username, function}
-  | (length username) >= 3 = True
-  | otherwise              = False
-*/
+
+answerQuestion :: Question -> Task Bool
+answerQuestion q = viewInformation "Question: " [] q.Question.question
+                 ||- enterChoice "Select the correct answer: " [ChooseFromGrid id] q.Question.answers
+                 >>= \answer -> return (elemIndex answer q.Question.answers == Just (q.Question.correct)) 
+
+studentTask :: String (Shared [Question]) -> Task [Question]
+studentTask username sharedQ = get sharedQ 
+                           >>= \questions -> sequence (map answerQuestion questions)
+                           >>= \correctAns -> (viewInformation "Correct answers" [] (calc correctAns)
+                           ||- viewInformation "Wrong answers" [] ((length questions) - (calc correctAns)))
+                           >>| taskQuestion
+                           where
+                           calc rightAns = foldr (\r a -> if r (a+1) a) 0 rightAns
 
 adminTask :: String (Shared [Question]) -> Task [Question]
 adminTask username sharedQ = viewInformation ("Welcome back, " +++ username) [] ""
