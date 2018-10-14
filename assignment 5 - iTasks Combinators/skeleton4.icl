@@ -62,8 +62,9 @@ taskLogin :: Task Login
 taskLogin = enterInformation "Enter username and function " [] 
                 
 taskQuestion :: Task [Question]
-taskQuestion = taskLogin >>* [ OnAction (Action "Login") (hasValue (\user -> redirect user sharedQuestions))]
-
+taskQuestion = taskLogin 
+    >>* [ OnAction (Action "Login") (ifValue (\({username,function}) -> size username >= 3)(\user -> redirect user sharedQuestions))]
+    
 redirect :: Login (Shared [Question]) -> Task [Question]
 redirect {username, function} shared
     | function == Student = studentTask username shared
