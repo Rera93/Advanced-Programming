@@ -62,9 +62,8 @@ taskLogin :: Task Login
 taskLogin = enterInformation "Enter username and function " [] 
                 
 taskQuestion :: Task [Question]
-taskQuestion = taskLogin 
-    >>* [ OnAction (Action "Login") (ifValue (\({username,function}) -> size username >= 3)(\user -> redirect user sharedQuestions))]
-    
+taskQuestion = taskLogin >>* [ OnAction (Action "Login") (ifValue (\({username,function}) -> size username >= 3) (\user -> redirect user sharedQuestions))]
+
 redirect :: Login (Shared [Question]) -> Task [Question]
 redirect {username, function} shared
     | function == Student = studentTask username shared
@@ -79,11 +78,11 @@ answerQuestion q = viewInformation "Question: " [] q.Question.question
 studentTask :: String (Shared [Question]) -> Task [Question]
 studentTask username sharedQ = get sharedQ 
                            >>= \questions -> sequence (map answerQuestion questions)
-                           >>= \correctAns -> (viewInformation "Correct answers" [] (calc correctAns)
-                           ||- viewInformation "Wrong answers" [] ((length questions) - (calc correctAns)))
+                           >>= \answers -> (viewInformation "Correct answers" [] (calc answers)
+                           ||- viewInformation "Wrong answers" [] ((length questions) - (calc answers)))
                            >>| taskQuestion
                            where
-                           calc rightAns = foldr (\r a -> if r (a+1) a) 0 rightAns
+                           calc answers = foldr (\b a -> if b (a+1) a) 0 answers
 
 adminTask :: String (Shared [Question]) -> Task [Question]
 adminTask username sharedQ = viewInformation ("Welcome back, " +++ username) [] ""
