@@ -54,7 +54,6 @@ jobs  =
 sharedJobs :: Shared [Job]
 sharedJobs = sharedStore "Available Jobs" jobs
 
-
 taskEnterSkills :: Task [Skill]
 taskEnterSkills = enterMultipleChoice "What are your skills?" [ChooseFromCheckGroup id] [Java, C, Python, Javascript]
 
@@ -68,14 +67,27 @@ taskLogin :: Task [Job]
 taskLogin = taskWorker >>* [OnAction (Action "Login") (hasValue (\worker -> workerActions worker sharedJobs))]           
 
 workerActions :: Worker (Shared [Job]) -> Task [Job]
-workerActions (name, skills) sharedJ = viewInformation ("Welcome back " +++ name +++ "!") [] ""
+workerActions (name, skills) sharedJ = viewInformation "Welcome back" [] (" " +++ name, skills)
                                       ||- enterChoiceWithShared "Choose job to complete" [ChooseFromGrid id] sharedJ
                                       >>* [ OnAction (Action "Create") (always (createNewJob (name, skills) sharedJ))
                                           , OnAction (Action "Edit") (always (editSkills (name, skills) sharedJ))
+                                        //  , OnAction (Action "Refresh") (always (filterJobs skills sharedJ)) not working yet
                                           ]
-                                      
-                                      
-                          
+
+filterJobs :: [Skill] (Shared [Job]) -> Task [Job]
+filterJobs mySkills sharedJ = upd (\jobs -> (matchSkillsToJob mySkills jobs)) sharedJ
+
+matchSkillsToJob :: [Skill] [Job] -> [Job]
+matchSkillsToJob [] []           = []
+matchSkillsToJob [] jobs         = []
+matchSkillsToJob mySkills [j:js]
+  | belongs j.Job.skillsNeeded mySkills = [j : (matchSkillsToJob mySkills js)]
+  | otherwise                           = matchSkillsToJob mySkills js 
+
+belongs :: [Skill] [Skill] -> Bool
+belongs [] _              = True
+belongs [ns:nss] mySkills = (elem ns mySkills) && (belongs nss mySkills) 
+                                                     
 createNewJob :: Worker (Shared [Job]) -> Task [Job]
 createNewJob worker sharedJ = enterInformation "Enter the name of the job" [] 
                           >>= \name -> enterMultipleChoice "Enter the skills required for the job" [ChooseFromCheckGroup id] [Java, C, Python, Javascript]
