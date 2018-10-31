@@ -73,7 +73,13 @@ workerActions (name, skills) sharedJ = viewInformation "Welcome back" [] (" " ++
                                    >>= \filteredJobs -> enterChoiceWithShared "Choose job to complete" [ChooseFromGrid id] (sharedStore "Available Jobs" filteredJobs))
                                    >>* [ OnAction (Action "Create") (always (createNewJob (name, skills) sharedJ))
                                        , OnAction (Action "Edit") (always (editSkills (name, skills) sharedJ))
+                                       , OnAction (Action "Execute") (hasValue (executeJob (name, skills) sharedJ))
+                                       , OnAction (Action "Cancel") (hasValue (\job -> workerActions (name, skills) sharedJ))
                                        ]
+                                       
+executeJob :: Worker (Shared [Job]) Job -> Task [Job]
+executeJob worker sharedJ job = upd (\jobs -> delete job jobs) sharedJ
+                            >>= \_ -> workerActions worker sharedJ
 
 filterJobs :: [Skill] (Shared [Job]) -> Task [Job]
 filterJobs mySkills sharedJ = upd (\jobs -> (matchSkillsToJob mySkills jobs)) sharedJ
