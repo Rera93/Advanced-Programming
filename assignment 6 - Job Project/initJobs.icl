@@ -35,6 +35,7 @@ derive class iTask Skill, Job
 
 Start :: *World -> *World
 Start world = doTasks taskLogin world
+//Start = matchSkillsToJob [Javascript, Python] jobs  
 
 jobs :: [Job]
 jobs  =
@@ -68,11 +69,11 @@ taskLogin = taskWorker >>* [OnAction (Action "Login") (hasValue (\worker -> work
 
 workerActions :: Worker (Shared [Job]) -> Task [Job]
 workerActions (name, skills) sharedJ = viewInformation "Welcome back" [] (" " +++ name, skills)
-                                      ||- enterChoiceWithShared "Choose job to complete" [ChooseFromGrid id] sharedJ
-                                      >>* [ OnAction (Action "Create") (always (createNewJob (name, skills) sharedJ))
-                                          , OnAction (Action "Edit") (always (editSkills (name, skills) sharedJ))
-                                        //  , OnAction (Action "Refresh") (always (filterJobs skills sharedJ)) not working yet
-                                          ]
+                                   ||- (filterJobs skills sharedJ 
+                                   >>= \filteredJobs -> enterChoiceWithShared "Choose job to complete" [ChooseFromGrid id] (sharedStore "Available Jobs" filteredJobs))
+                                   >>* [ OnAction (Action "Create") (always (createNewJob (name, skills) sharedJ))
+                                       , OnAction (Action "Edit") (always (editSkills (name, skills) sharedJ))
+                                       ]
 
 filterJobs :: [Skill] (Shared [Job]) -> Task [Job]
 filterJobs mySkills sharedJ = upd (\jobs -> (matchSkillsToJob mySkills jobs)) sharedJ
@@ -80,12 +81,14 @@ filterJobs mySkills sharedJ = upd (\jobs -> (matchSkillsToJob mySkills jobs)) sh
 matchSkillsToJob :: [Skill] [Job] -> [Job]
 matchSkillsToJob [] []           = []
 matchSkillsToJob [] jobs         = []
+matchSkillsToJob mySkills []     = []
 matchSkillsToJob mySkills [j:js]
-  | belongs j.Job.skillsNeeded mySkills = [j : (matchSkillsToJob mySkills js)]
-  | otherwise                           = matchSkillsToJob mySkills js 
+  | belongs j.Job.skillsNeeded mySkills = [j] ++ (matchSkillsToJob mySkills js)
+                                        = matchSkillsToJob mySkills js
 
 belongs :: [Skill] [Skill] -> Bool
 belongs [] _              = True
+belongs neededSkills []   = False
 belongs [ns:nss] mySkills = (elem ns mySkills) && (belongs nss mySkills) 
                                                      
 createNewJob :: Worker (Shared [Job]) -> Task [Job]
