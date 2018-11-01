@@ -52,6 +52,9 @@ jobs  =
 	 }
 	]
 	
+subJobs :: [Job]
+subJobs = []
+	
 sharedJobs :: Shared [Job]
 sharedJobs = sharedStore "Available Jobs" jobs
 
@@ -68,15 +71,22 @@ taskLogin :: Task [Job]
 taskLogin = taskWorker >>* [OnAction (Action "Login") (hasValue (\worker -> workerActions worker sharedJobs))]           
 
 workerActions :: Worker (Shared [Job]) -> Task [Job]
-workerActions (name, skills) sharedJ = viewInformation "Welcome back" [] (" " +++ name, skills)
+workerActions (name, skills) sharedJ = viewInformation "Welcome back" [] (name, skills)
                                    ||- (filterJobs skills sharedJ 
                                    >>= \filteredJobs -> enterChoiceWithShared "Choose job to complete" [ChooseFromGrid id] (sharedStore "Available Jobs" filteredJobs))
                                    >>* [ OnAction (Action "Create") (always (createNewJob (name, skills) sharedJ))
                                        , OnAction (Action "Edit") (always (editSkills (name, skills) sharedJ))
                                        , OnAction (Action "Execute") (hasValue (executeJob (name, skills) sharedJ))
                                        , OnAction (Action "Cancel") (hasValue (\job -> workerActions (name, skills) sharedJ))
+                                       , OnAction (Action "Split") (hasValue (splitJob (name, skills) sharedJ))
                                        ]
                                        
+splitJob :: Worker (Shared [Job]) Job -> Task [Job]
+splitJob worker sharedJ job = viewInformation "Split job in sub-jobs" [] job
+                          ||- updateSharedInformation "Add/Remove/Edit sub-jobs" [] (sharedStore "" subJobs)
+                          >>= \listOfSubJobs -> upd (\jobs -> appendJobs listOfSubJobs jobs job) sharedJ
+                          >>= \_ -> workerActions worker sharedJ
+
 executeJob :: Worker (Shared [Job]) Job -> Task [Job]
 executeJob worker sharedJ job = upd (\jobs -> delete job jobs) sharedJ
                             >>= \_ -> workerActions worker sharedJ
@@ -106,6 +116,14 @@ createNewJob worker sharedJ = enterInformation "Enter the name of the job" []
 appendJob :: Job [Job] -> [Job]
 appendJob job [] = [job]
 appendJob job list = [job:list] 
+
+appendJobs :: [Job] [Job] Job -> [Job]
+appendJobs [] [] job             = []
+appendJobs [] jobs job           = jobs
+appendJobs subJobs [j:js] job 
+  | j == job                   = [j] ++ subJobs ++ js
+                               = [j] ++ (appendJobs subJobs js job)   
+
                            
 
 editSkills :: Worker (Shared [Job]) -> Task [Job]
