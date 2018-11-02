@@ -20,10 +20,6 @@ import Data.List
     
 :: Worker :== (String, [Skill])
 
-/*instance == (Relation) where
-    == Independent Independent = True
-    == _ _                     = False*/
-
 instance == (Skill) where
     == Java Java             = True
     == C C                   = True
@@ -183,7 +179,7 @@ appendJobs subJobs [j:js] job
 editSkills :: Worker (Shared [Job]) -> Task [Job]
 editSkills (name, skills) sharedJ = viewInformation (name +++ " Personal Information") [] (name, skills)
                         ||- updateInformation "Update set of skills" [updater] (name, skills)
-                        >>* [ OnAction (Action "Save") (hasValue (\worker -> updateJobs worker sharedJ)) //works only when removing,
+                        >>* [ OnAction (Action "Save") (ifValue hasNoDupSkills (\worker -> updateJobs worker sharedJ)) //works only when removing,
                             , OnAction (Action "Cancel") (always (workerActions (name, skills) sharedJ)) 
                             ]
                         where 
@@ -193,10 +189,8 @@ updateJobs :: Worker (Shared [Job]) -> Task [Job]
 updateJobs (name, skills) sharedJ = filterJobs skills sharedJ
                                 >>= \filteredJobs -> upd (\jobs -> filteredJobs) sharedJ
                                 >>= \_ -> workerActions (name, skills) (sharedStore "" filteredJobs) 
-                           
-                           
                                 
-                                  
-
-//checkDuplicateSkills :: Worker -> Bool
-//checkDuplicateSkills (_, skills) = if 
+hasNoDupSkills :: Worker -> Bool
+hasNoDupSkills (name, skills)
+  | hasDup skills = False
+                  = True
