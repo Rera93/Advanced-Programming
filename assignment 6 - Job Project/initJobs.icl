@@ -143,7 +143,7 @@ deleteSubJob job [j:js]
                               ,subJobs = delete job j.Job.subJobs
                               ,relation = j.Job.relation 
                               }] ++ js 
-                           = deleteSubJob job js
+                           = [j] ++ deleteSubJob job js
 
 filterJobs :: [Skill] (Shared [Job]) -> Task [Job]
 filterJobs mySkills sharedJ = upd (\jobs -> (matchSkillsToJob mySkills jobs)) sharedJ
