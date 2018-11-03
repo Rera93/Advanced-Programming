@@ -105,7 +105,7 @@ workerActionsTask (name, skills) sharedJ = (filterJobs skills sharedJ
 splitJob :: Worker (Shared [Job]) Job -> Task [Job]
 splitJob worker sharedJ jobToSplit = viewInformation "Split job in sub-jobs" [] jobToSplit
                          // ||- updateSharedInformation "Add/Remove/Edit sub-jobs" [] (sharedStore "" subJobs)
-                          ||- addSubJobs jobToSplit 
+                          ||- addSubJobs jobToSplit sharedJ
                           >>= \listOfSubJob -> return (listOfSubJob ++ jobToSplit.Job.subJobs)
                           >>= \listOfSubJobs -> get sharedJ
                           >>= \jobs -> set (appendJobs listOfSubJobs jobs jobToSplit) sharedJ
@@ -115,9 +115,10 @@ splitJob worker sharedJ jobToSplit = viewInformation "Split job in sub-jobs" [] 
                           //    updater = UpdateAs (\[j] -> [j.Job.jobName]) (\[subJob] newName -> [{[newName, job.Job.skillsNeeded, job.Job.subJobs, Child]}])
                             
           
-addSubJobs :: Job -> Task [Job]
-addSubJobs job = updateInformation "New name for job" [] job.Job.jobName
-                  >>= \newName -> return [{job & jobName = newName, subJobs = [], relation = job.Job.jobName }]  
+addSubJobs :: Job (Shared [Job])-> Task [Job]
+addSubJobs job sharedJ = get sharedJ
+             >>= \jobs -> updateInformation "New name for job" [] job.Job.jobName
+             >>* [ OnAction (Action "Add") (ifValue (hasNoDupNames jobs) (\newName -> return [{job & jobName = newName, subJobs = [], relation = job.Job.jobName }]))] 
 
 executeSubJob :: Worker (Shared [Job]) Job -> Task [Job]
 executeSubJob worker sharedJ job = //upd (\jobs -> delete job jobs) sharedJ
@@ -168,8 +169,10 @@ belongs neededSkills []   = False
 belongs [ns:nss] mySkills = (elem ns mySkills) && (belongs nss mySkills) 
                                                      
 createNewJob :: Worker (Shared [Job]) -> Task [Job]
-createNewJob worker sharedJ = enterInformation "Enter the name of the job" [] 
-                          >>= \name -> enterMultipleChoice "Enter tfor he skills required for the job" [ChooseFromCheckGroup id] [Java, C, Python, Javascript]
+createNewJob worker sharedJ = get sharedJ
+                          >>= \jobs -> enterInformation "Enter the name of the job" [] 
+                          >>* [OnAction (Action "Create") (ifValue (hasNoDupNames jobs) (\name -> return name))]
+                          >>= \name -> enterMultipleChoice "Enter the skills required for the job" [ChooseFromCheckGroup id] [Java, C, Python, Javascript]
                           >>= \skills -> upd (\jobs -> appendJob {jobName = name, skillsNeeded = skills, subJobs = [], relation = ""} jobs) sharedJ
                           >>= \_ -> workerActionsTask worker sharedJ
                 
@@ -204,3 +207,9 @@ hasNoDupSkills :: Worker -> Bool
 hasNoDupSkills (name, skills)
   | hasDup skills = False
                   = True
+                  
+hasNoDupNames :: [Job] String -> Bool
+hasNoDupNames [] _ = True
+hasNoDupNames [j:js] name 
+  | j.Job.jobName == name = False
+                          = hasNoDupNames js name
