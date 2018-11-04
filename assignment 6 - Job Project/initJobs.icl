@@ -78,12 +78,12 @@ taskWorker :: Task Worker
 taskWorker = taskEnterName -&&- taskEnterSkills  
 
 taskLogin :: Task [Job]
-taskLogin = taskWorker >>* [OnAction (Action "Login") (hasValue (\worker -> workerRefreshTask worker ))]
+taskLogin = taskWorker >>* [OnAction (Action "Login") (hasValue (\worker -> forever (workerRefreshTask worker)))]
          
 workerRefreshTask :: Worker -> Task [Job] 
-workerRefreshTask worker = forever (get sharedJobs 
+workerRefreshTask worker = get sharedJobs 
                          >>= \shjobs -> upd (\(w, jobss) -> (worker, shjobs )) (shareStore worker) 
-                         >>= \_ -> workerActionsTask (shareStore worker) sharedJobs)
+                         >>= \_ -> workerActionsTask (shareStore worker) sharedJobs
                                        
 updateSkillsTask :: Worker -> Task (String, [Skill])
 updateSkillsTask (name, skills) = updateInformation ("Welcome back " +++ name +++ "!") [updater] (name, skills)
@@ -100,7 +100,7 @@ workerActionsTask sharedJ sharedJobs = get sharedJ
                         >>= \(w, filteredJobs) -> set jobs sharedJobs
                         >>= \_ -> enterChoiceWithShared "Choose job to complete" [ChooseFromGrid id] (sharedStore "Filtered Jobs" filteredJobs))
                                    >>* [ OnAction (Action "Create") (always (createNewJob sharedJ sharedJobs))
-                                       , OnAction (Action "Edit") (always (taskLogin))
+                                       , OnAction (Action "Edit") (always (editSkills sharedJ sharedJobs))
                                        , OnAction (Action "Execute") (ifValue isIndependent (executeJob sharedJ sharedJobs))
                                        , OnAction (Action "ExecuteSub") (ifValue isDependent (executeSubJob sharedJ sharedJobs))
                                        , OnAction (Action "Cancel") (hasValue (\job -> workerActionsTask sharedJ sharedJobs))
@@ -191,7 +191,7 @@ editSkills :: (Shared (Worker, [Job])) (Shared [Job]) -> Task [Job]
 editSkills sharedJ sharedJobs = get sharedJ 
                  >>= \((name, skills), jobs) -> viewInformation (name +++ " Personal Information") [] (name, skills)
                         ||- updateInformation "Update set of skills" [updater] (name, skills)
-                        >>* [ OnAction (Action "Save") (ifValue hasNoDupSkills (\worker -> updateJobs worker sharedJ sharedJobs)) //works only when removing,
+                        >>* [ OnAction (Action "Save") (ifValue hasNoDupSkills (\worker -> workerRefreshTask worker)) //works only when removing,
                             , OnAction (Action "Cancel") (always (workerActionsTask sharedJ sharedJobs)) 
                             ]
                         where 
