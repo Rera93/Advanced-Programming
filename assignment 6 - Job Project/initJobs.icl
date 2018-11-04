@@ -20,8 +20,6 @@ import Data.List
     
 :: Worker :== (String, [Skill])
 
-:: WorkerHome :== ((String, [Skill]), [Job])
-
 instance == (Skill) where
     == Java Java             = True
     == C C                   = True
@@ -35,8 +33,6 @@ instance == Job where
 instance == Worker where
     == (nameA, _) (nameB, _) = nameA == nameB
     
-
-
 derive class iTask Skill, Job
 
 Start :: *World -> *World
@@ -78,11 +74,12 @@ taskEnterName = enterInformation "Enter your name" []
 taskWorker :: Task Worker
 taskWorker = taskEnterName -&&- taskEnterSkills  
 
-taskLogin :: Task WorkerHome
-taskLogin = taskWorker >>* [OnAction (Action "Login") (hasValue (\worker -> workerInterfaceTask worker sharedJobs))]
+taskLogin :: Task [Job]
+taskLogin = taskWorker >>* [OnAction (Action "Login") (hasValue (\worker -> workerActionsTask worker sharedJobs))]
          
-workerInterfaceTask :: Worker (Shared [Job]) -> Task WorkerHome
-workerInterfaceTask (name, skills) sharedJ = (updateSkillsTask (name, skills)) -&&- (workerActionsTask (name, skills) sharedJ)
+/*workerInterfaceTask :: Worker (Shared [Job]) -> Task [Job]
+workerInterfaceTask (name, skills) sharedJ = 
+                                           ||- workerActionsTask (name, skills) sharedJ*/
                                        
 updateSkillsTask :: Worker -> Task (String, [Skill])
 updateSkillsTask (name, skills) = updateInformation ("Welcome back " +++ name +++ "!") [updater] (name, skills)
@@ -90,8 +87,10 @@ updateSkillsTask (name, skills) = updateInformation ("Welcome back " +++ name ++
                               where
                                   updater = UpdateAs (\(name, skills) -> skills) (\(name, skills) newSkills -> (name, newSkills))
 
+
 workerActionsTask :: Worker (Shared [Job]) -> Task [Job]
-workerActionsTask (name, skills) sharedJ = (filterJobs skills sharedJ 
+workerActionsTask (name, skills) sharedJ = viewInformation "Welcome back" [] (name, skills)
+                                       ||- (filterJobs skills sharedJ 
                                        >>= \filteredJobs -> enterChoiceWithShared "Choose job to complete" [ChooseFromGrid id] (sharedStore "Available Jobs" filteredJobs))
                                    >>* [ OnAction (Action "Create") (always (createNewJob (name, skills) sharedJ))
                                        , OnAction (Action "Edit") (always (editSkills (name, skills) sharedJ))
@@ -104,16 +103,11 @@ workerActionsTask (name, skills) sharedJ = (filterJobs skills sharedJ
                                        
 splitJob :: Worker (Shared [Job]) Job -> Task [Job]
 splitJob worker sharedJ jobToSplit = viewInformation "Split job in sub-jobs" [] jobToSplit
-                         // ||- updateSharedInformation "Add/Remove/Edit sub-jobs" [] (sharedStore "" subJobs)
-                          ||- addSubJobs jobToSplit sharedJ
-                          >>= \listOfSubJob -> return (listOfSubJob ++ jobToSplit.Job.subJobs)
-                          >>= \listOfSubJobs -> get sharedJ
-                          >>= \jobs -> set (appendJobs listOfSubJobs jobs jobToSplit) sharedJ
-                          //>>= \listOfSubJobs -> upd (\jobs -> appendJobs listOfSubJobs jobs jobToSplit) sharedJ 
-                          >>= \_ -> workerActionsTask worker sharedJ
-                         // where
-                          //    updater = UpdateAs (\[j] -> [j.Job.jobName]) (\[subJob] newName -> [{[newName, job.Job.skillsNeeded, job.Job.subJobs, Child]}])
-                            
+                                 ||- addSubJobs jobToSplit sharedJ
+                                 >>= \listOfSubJob -> return (listOfSubJob ++ jobToSplit.Job.subJobs)
+                                 >>= \listOfSubJobs -> get sharedJ
+                                 >>= \jobs -> set (appendJobs listOfSubJobs jobs jobToSplit) sharedJ
+                                 >>= \_ -> workerActionsTask worker sharedJ
           
 addSubJobs :: Job (Shared [Job])-> Task [Job]
 addSubJobs job sharedJ = get sharedJ
@@ -121,11 +115,9 @@ addSubJobs job sharedJ = get sharedJ
              >>* [ OnAction (Action "Add") (ifValue (hasNoDupNames jobs) (\newName -> return [{job & jobName = newName, subJobs = [], relation = job.Job.jobName }]))] 
 
 executeSubJob :: Worker (Shared [Job]) Job -> Task [Job]
-executeSubJob worker sharedJ job = //upd (\jobs -> delete job jobs) sharedJ
-                                    get sharedJ
+executeSubJob worker sharedJ job = get sharedJ
                                >>= \jobs -> return (delete job jobs)
                                >>= \newJobs -> set (deleteSubJob job newJobs) sharedJ
-                              // >>= \_ -> upd (\jobs -> deleteSubJob job jobs) sharedJ
                                >>= \newSharedJ -> workerActionsTask worker sharedJ                                                                                                
 
 isIndependent :: Job -> Bool 
@@ -199,9 +191,9 @@ editSkills (name, skills) sharedJ = viewInformation (name +++ " Personal Informa
                             updater = UpdateAs (\(name, skills) -> skills) (\(name, skills) newSkills -> (name, newSkills))
                            
 updateJobs :: Worker (Shared [Job]) -> Task [Job]
-updateJobs (name, skills) sharedJ = filterJobs skills sharedJ
-                                >>= \filteredJobs -> upd (\jobs -> filteredJobs) sharedJ
-                                >>= \_ -> workerActionsTask (name, skills) (sharedStore "" filteredJobs) 
+updateJobs (name, skills) sharedJ = get sharedJ
+                                >>= \jobs -> filterJobs skills sharedJ
+                                >>= \_ -> workerActionsTask (name, skills) sharedJ 
                                 
 hasNoDupSkills :: Worker -> Bool
 hasNoDupSkills (name, skills)
