@@ -5,7 +5,9 @@ module skeleton4
 
 import qualified Data.Map as Map
 
-import StdEnv, StdMaybe
+import StdEnv, StdMaybe, StdList
+import Data.List
+
 
 :: Gram = Lit String
         | Idn
@@ -39,11 +41,11 @@ instance MyFunctor (Parse) where
                                        (Just a, st`) = (Just (f a), st`) 
                                        (_, st`) = (Nothing, st`) 
 
-class Applicative f | MyFunctor f where
+class MyApplicative f | MyFunctor f where
 	pure :: a -> f a
 	(<*>) infixl 4 :: (f (a->b)) (f a) -> f b
 	
-instance Applicative (Parse) where
+instance MyApplicative (Parse) where
     pure x = Parse \st -> (Just x, st)
     (<*>) (Parse f) (Parse g) = Parse \st -> case f st of
                                                  (Just f, st) = case g st of 
@@ -51,7 +53,7 @@ instance Applicative (Parse) where
                                                                     (Nothing, st) = (Nothing, st)
                                                  (Nothing, st) = (Nothing, st)
 
-class Monad m | Applicative m where
+class MyMonad m | MyApplicative m where
 	bind :: (m a) (a->m b) -> m b
 	(>>=) infixl 1 :: (m a) (a->m b) -> m b | Monad m
 	(>>=) a f :== bind a f
@@ -60,7 +62,7 @@ class Monad m | Applicative m where
 	rtrn :: a -> m a | Monad m
 	rtrn a :== pure a
 	
-instance Monad (Parse) where
+instance MyMonad (Parse) where
     bind (Parse g) f = Parse \st -> case g st of 
                                         (Just a, st)  = unParse (f a) st
                                         (Nothing, st) = (Nothing, st) 
@@ -69,14 +71,27 @@ instance Monad (Parse) where
 unParse :: (Parse a) -> State -> (Maybe a,State)
 unParse (Parse f) = f   
 
-class OrMonad m where
+class MyAlternative m where
+    empty :: m a 
 	(<|>) infixl 0 :: (m a) (m a) -> m a
 	
-instance OrMonad (Parse) where
+instance Alternative (Parse) where
+    empty = Parse \st -> (Nothing, st)
     (<|>) (Parse f) (Parse g) = Parse \st -> case f st of
                                                 (Nothing, _) = g st
                                                 other        = other  
-
+                                                
+next :: Parse String 
+next = Parse \st -> (Just (head st.State.input), { input = delete (head st.State.input) st.State.input
+                                                 , seen =  st.State.seen ++ [(head st.State.input)]
+                                                 , store = st.State.store
+                                                 })
+                                                 
+back :: Parse String 
+back = Parse \st -> (Just (last st.State.seen), { input = [last st.State.seen] ++ st.State.input
+                                                , seen  = delete (last st.State.seen) st.State.seen
+                                                , store = st.State.store
+                                                }) 
 
 Start = "True"
 
