@@ -92,6 +92,17 @@ back = Parse \st -> (Just (last st.State.seen), { input = [last st.State.seen] +
                                                 , seen  = delete (last st.State.seen) st.State.seen
                                                 , store = st.State.store
                                                 }) 
+setGram:: Name Gram -> Parse Gram
+setGram n g = Parse \st -> (Nothing, { input = st.State.input
+									 , seen = st.State.seen
+									 , store = put (n g st.State.store)
+									})
+
+getGram:: Name -> Parse Gram
+getGram n = Parse \st -> (get n (st.State.store), { input = st.State.input
+                                                  , seen  = st.State.seen
+                                                  , store = st.State.store
+                                                  }))
 
 Start = "True"
 
