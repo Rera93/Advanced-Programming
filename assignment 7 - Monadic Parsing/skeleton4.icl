@@ -104,7 +104,11 @@ getGram n = Parse \st -> ('Map'.get n (st.State.store), { input = st.State.input
                                                   , store = st.State.store
                                                   })
 
+// For us it was not clear what was asked in both 1.3 and 1.4. Despite that,
+// we have tried to come up with a solution for 1.3.
+
 ::TREE = LIT String | IDN String | INT Int | SEQ [TREE]
+
 
 parse :: Gram -> Parse TREE
 parse (Lit s) = Parse \st -> (Just (LIT s), st)
