@@ -95,14 +95,27 @@ back = Parse \st -> (Just (last st.State.seen), { input = [last st.State.seen] +
 setGram:: Name Gram -> Parse Gram
 setGram n g = Parse \st -> (Nothing, { input = st.State.input
 									 , seen = st.State.seen
-									 , store = put (n g st.State.store)
+									 , store = 'Map'.put n g st.State.store
 									})
 
 getGram:: Name -> Parse Gram
-getGram n = Parse \st -> (get n (st.State.store), { input = st.State.input
+getGram n = Parse \st -> ('Map'.get n (st.State.store), { input = st.State.input
                                                   , seen  = st.State.seen
                                                   , store = st.State.store
-                                                  }))
+                                                  })
+
+::TREE = LIT String | IDN String | INT Int | SEQ [TREE]
+
+parse :: Gram -> Parse TREE
+parse (Lit s) = Parse \st -> (Just (LIT s), st)
+/*parse (Seq [x:xs]) = Parse \st -> case parse x of 
+									(Just a, _) -> case parse xs of
+															(Just b, _) -> (Just (SEQ [a:b]), st)
+															_ -> (Nothing, st)
+									_ -> (Nothing, st)
+parse (i) = Parse \st -> (Just (IDN i), st)
+parse _ = Parse \st -> (Nothing, st)
+*/
 
 Start = "True"
 
