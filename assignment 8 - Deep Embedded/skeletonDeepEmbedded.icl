@@ -61,21 +61,26 @@ unSem (Sem s) = s
 
 instance Functor Sem where
   //fmap :: (a->b) (Sem a) -> (Sem b)
-    fmap f (Sem g) = Sem \st -> case g st of
+    fmap atob (Sem g) = Sem \st -> case g st of
                                     (Left m)        = Left m
-                                    (Right (v, st)) = Right ((f v), st)
+                                    (Right (a, st)) = Right ((atob a), st)
     
 instance Applicative Sem where
   //pure :: a -> Sem a  
     pure x = Sem \st -> Right (x, st)
   //(<*>) infixl 4 :: (Sem (a->b)) (Sem a) -> Sem b
-    (<*>) ff ss = ff >>= \f -> ss >>= \s -> pure (f s)
+  //(<*>) ff ss = ff >>= \f -> ss >>= \s -> pure (f s)     ...Possible to use monadic bind to construct <*>...
+    (<*>) (Sem f) (Sem g) = Sem \st -> case f st of
+                                           (Right (atob, st)) = case g st of
+                                                                 (Right (a, st)) = Right (atob a, st)
+                                                                 (Left m)        = Left m 
+                                           (Left m)           = Left m
     
 instance Monad Sem where
   //bind :: (m a) (a->m b) -> m b
-    bind (Sem g) f = Sem \st -> case g st of
+    bind (Sem g) atomb = Sem \st -> case g st of
                                 (Left m)        = Left m
-                                (Right (v, st)) = unSem (f v) st  
+                                (Right (a, st)) = unSem (atomb a) st  
   
 // 2.1
  
