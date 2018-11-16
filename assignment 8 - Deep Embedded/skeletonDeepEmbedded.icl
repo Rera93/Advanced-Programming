@@ -11,7 +11,7 @@ import iTasks => qualified return, >>=, >>|, sequence, forever, :: Set
 	Use this as 'iTasks'.return. All other parts of iTasks are available.
 */
 import Data.Functor, Control.Applicative, Control.Monad
-import Data.Tuple
+import Data.Tuple, Data.Either
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -42,22 +42,40 @@ import qualified Data.Map as Map
 :: State :== 'Map'.Map Var Val
 :: Var :== String
 
-instance == Var where
+/*instance == Var where
   (==) s1 s2 = s1 == s2
-  (==) _ _   = False
+  (==) _ _   = False*/
   
 // 1.3
 
-:: Sem a = Sem (State -> (Either String (a, State))
+:: Sem a = Sem (State -> Either String (a, State))
 
 :: Fail :== String
 
-instance == Fail where
+/*instance == Fail where
     (==) f1 f2 = f1 == f2
-    (==) _ _        == False
+    (==) _ _   = False*/
 
 unSem :: (Sem a) -> State -> Either Fail (a, State)
-unSem (S s) = s
+unSem (Sem s) = s
+
+instance Functor Sem where
+  //fmap :: (a->b) (Sem a) -> (Sem b)
+    fmap f (Sem g) = Sem \st -> case g st of
+                                    (Left m)        = Left m
+                                    (Right (v, st)) = Right ((f v), st)
+    
+instance Applicative Sem where
+  //pure :: a -> Sem a  
+    pure x = Sem \st -> Right (x, st)
+  //(<*>) infixl 4 :: (Sem (a->b)) (Sem a) -> Sem b
+    (<*>) ff ss = ff >>= \f -> ss >>= \s -> pure (f s)
+    
+instance Monad Sem where
+  //bind :: (m a) (a->m b) -> m b
+    bind (Sem g) f = Sem \st -> case g st of
+                                (Left m)        = Left m
+                                (Right (v, st)) = unSem (f v) st  
   
 // 2.1
  
