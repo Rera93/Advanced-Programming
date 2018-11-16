@@ -89,6 +89,9 @@ read :: Ident -> Sem Val
 read i = Sem \st -> case ('Map'.get i st) of 
                         Just v  = Right (v, st)
                         Nothing = Left ("Variable " +++ i +++ " not found in the store")
+
+fail :: String -> Sem Val
+fail m = Sem \_ -> Left m
   
 // 2.1
  
