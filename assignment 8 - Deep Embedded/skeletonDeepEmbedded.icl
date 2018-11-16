@@ -81,6 +81,14 @@ instance Monad Sem where
     bind (Sem g) atomb = Sem \st -> case g st of
                                 (Left m)        = Left m
                                 (Right (a, st)) = unSem (atomb a) st  
+                                
+store :: Ident Val -> Sem Val
+store i v = Sem \st -> Right (v, 'Map'.put i v st)
+
+read :: Ident -> Sem Val
+read i = Sem \st -> case ('Map'.get i st) of 
+                        Just v  = Right (v, st)
+                        Nothing = Left ("Variable " +++ i +++ " not found in the store")
   
 // 2.1
  
