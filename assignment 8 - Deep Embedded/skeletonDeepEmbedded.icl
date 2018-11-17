@@ -48,7 +48,7 @@ import qualified Data.Map as Map
   
 // 1.3
 
-:: Sem a = Sem (State -> Either String (a, State))
+:: Sem a = Sem (State -> Either Fail (a, State))
 
 :: Fail :== String
 
@@ -92,6 +92,39 @@ read i = Sem \st -> case ('Map'.get i st) of
 
 fail :: String -> Sem Val
 fail m = Sem \_ -> Left m
+
+// 1.4
+
+eval :: Expression -> Sem Val
+eval (New set)    = pure (SetV set)
+eval (Elem e)     = pure (IntV e)
+eval (Variable i) = read i
+eval (Size expr)  = eval expr >>= \exprVal -> case exprVal of
+                                                  (SetV set) = pure (IntV (length set))
+                                                  (IntV val) = fail "Error, you are trying to find the size of an interger"
+eval (el +. er)   = eval el >>= \elVal -> eval er >>= \erVal -> case elVal of
+                                                                    (IntV vl) = case erVal of
+                                                                                    (IntV vr) = pure (IntV (vl + vr))
+                                                                                    (SetV sr) = pure (SetV ('List'.union [vl] sr))
+                                                                    (SetV sl) = case erVal of
+                                                                                    (IntV vr) = pure (SetV ('List'.union sl [vr]))
+                                                                                    (SetV sr) = pure (SetV ('List'.union sl sr))
+eval (el -. er)   = eval el >>= \elVal -> eval er >>= \erVal -> case elVal of
+                                                                    (IntV vl) = case erVal of
+                                                                                    (IntV vr) = pure (IntV (vl - vr))
+                                                                                    (SetV sr) = fail "Error, cannot find difference between an Int and a list of Int"
+                                                                    (SetV sl) = case erVal of
+                                                                                    (IntV vr) = pure (SetV ('List'.difference sl [vr]))
+                                                                                    (SetV sr) = pure (SetV ('List'.difference sl sr))
+eval (el *. er)   = eval el >>= \elVal -> eval er >>= \erVal -> case elVal of
+                                                                    (IntV vl) = case erVal of
+                                                                                    (IntV vr) = pure (IntV (vl * vr))
+                                                                                    (SetV sr) = pure (SetV (map ((*) vl) sr)) 
+                                                                    (SetV sl) = case erVal of
+                                                                                    (IntV vr) = fail "Error, cannot apply *. from a list of Int to an Int"
+                                                                                    (SetV sr) = pure (SetV ('List'.intersect sl sr))                                             
+eval (i =. expr)  = eval expr >>= \exprVal -> store i exprVal
+
   
 // 2.1
  
@@ -122,4 +155,4 @@ fail m = Sem \_ -> Left m
 (>>>=)     :== tbind
 (>>>|) a b :== tbind a (\_ -> b)
 
-Start = ()
+Start = eval (Size (Elem 1))
