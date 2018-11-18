@@ -127,7 +127,7 @@ eval (el *. er)   = eval el >>= \elVal -> eval er >>= \erVal -> case elVal of
 eval (i =. expr)  = eval expr >>= \exprVal -> store i exprVal
 
   
-// 2.1
+// 2.1 Logical Expressions
  
 :: Logical
   = TRUE | FALSE
@@ -161,6 +161,8 @@ evalL (Not log)   = evalL log >>= \logVal -> pure (not logVal)
 evalL (ll ||. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal || lrVal) //Problem
 evalL (ll &&. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal && lrVal) //Problem
 
+// 2.2 Statements
+
 :: Stmt
   = Expression Expression
   | Logical Logical
@@ -188,15 +190,38 @@ exec stmt i val = store i (IntV val) >>= \_ -> evalS stmt
 seqStmt :: (Sem StmtVal) (Sem StmtVal) -> Sem StmtVal
 seqStmt (Sem f) (Sem g) = Sem \st -> f st >>= \(_, newSt) -> g newSt 
 
-  
-  
+// 3. Printing
 
-  
+class printing a :: a -> String
 
-
-
-// === semantics
-
+instance printing Ident where 
+    printing id = id
+    
+instance printing Expression where
+    printing (New set)     = " New: " +++ toString set
+    printing (Elem e)      = " Elem: " +++ toString e
+    printing (Variable id) = " Variable: " +++ id
+    printing (Size expr)   = " Size: " +++ printing expr
+    printing (el +. er)    = " " +++ printing el +++ " + " +++ printing er
+    printing (el -. er)    = " " +++ printing el +++ " - " +++ printing er
+    printing (el *. er)    = " " +++ printing el +++ " * " +++ printing er
+    printing (el =. er)    = " " +++ printing el +++ " = " +++ printing er
+    
+instance printing Logical where
+    printing TRUE        = "True"
+    printing FALSE       = "False"
+    printing (e In s)    = " " +++ printing e +++ " in " +++ printing s
+    printing (el ==. er) = " " +++ printing el +++ " == " +++ printing er
+    printing (el <=. er) = " " +++ printing el +++ " <= " +++ printing er
+    printing (Not log)   = " Not " +++ printing log 
+    printing (el ||. er) = " " +++ printing el +++ " || " +++ printing er
+    printing (el &&. er) = " " +++ printing el +++ " && " +++ printing er
+         
+instance printing Stmt where
+    printing (Logical log)         = " " +++ printing log
+    printing (Expression expr)     = " " +++ printing expr
+    printing (If cond stmtT stmtF) = " If " +++ printing cond +++ " then " +++ printing stmtT +++ " else " +++ printing stmtF
+    printing (For i set stmt)      = " For " +++ i +++ " in " +++ printing set +++ " do " +++ printing stmt +++ " od "    
 
 // === simulation
 
