@@ -13,6 +13,7 @@ import iTasks => qualified return, >>=, >>|, sequence, forever, :: Set
 import Data.Functor, Control.Applicative, Control.Monad
 import Data.Tuple, Data.Either
 
+
 import qualified Data.List as List
 import qualified Data.Map as Map
 // use this as: 'List'.union
@@ -136,6 +137,29 @@ eval (i =. expr)  = eval expr >>= \exprVal -> store i exprVal
   | Not Logical
   | (||.) infixr 2 Logical Logical
   | (&&.) infixr 3 Logical Logical
+  
+instance == Val where
+    (==) (IntV vl) (IntV vr) = vl == vr
+    (==) (SetV sl) (SetV sr) = (sort sl) == (sort sr)
+    (==) _ _                 = False
+    
+instance < Val where
+    (<) (IntV vl) (IntV vr) = vl <= vr
+    (<) _ _                 = False
+  
+evalL :: Logical -> Sem Bool
+evalL TRUE        = pure True
+evalL FALSE       = pure False
+//evalL (ee In ss)  = eval ee >>= \eeVal -> eval ss >>= \ssVal -> case eeVal of
+//                                                                     (IntV vl)  = case ssVal of
+//                                                                                     (SetV sr) = pure True
+//                                                                                     (IntV vr) = fail "Error, can't check if Int is a member of Int"
+//                                                                     _ = fail "Error, can't check if Set is a member of a Set or Int"
+evalL (el ==. er) = eval el >>= \elVal -> eval er >>= \erVal -> pure (elVal == erVal)
+evalL (el <=. er) = eval el >>= \elVal -> eval er >>= \erVal -> pure (elVal < erVal)
+evalL (Not log)   = evalL log >>= \logVal -> pure (not logVal)
+evalL (ll ||. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal || lrVal)
+evalL (ll &&. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal && lrVal) 
 
 :: Stmt
   = Expression Expression
@@ -143,6 +167,8 @@ eval (i =. expr)  = eval expr >>= \exprVal -> store i exprVal
   | For Ident Set Stmt
   | If Logical Stmt Stmt 
   
+  
+
   
 
 
@@ -155,4 +181,4 @@ eval (i =. expr)  = eval expr >>= \exprVal -> store i exprVal
 (>>>=)     :== tbind
 (>>>|) a b :== tbind a (\_ -> b)
 
-Start = eval (Size (Elem 1))
+Start = evalL ((Elem 2) ==. (New [1]))
