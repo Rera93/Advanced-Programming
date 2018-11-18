@@ -45,20 +45,12 @@ import qualified Data.Map as Map
 
 :: State :== 'Map'.Map Var Val
 :: Var :== String
-
-/*instance == Var where
-  (==) s1 s2 = s1 == s2
-  (==) _ _   = False*/
   
 // 1.3
 
 :: Sem a = Sem (State -> Either Fail (a, State))
 
 :: Fail :== String
-
-/*instance == Fail where
-    (==) f1 f2 = f1 == f2
-    (==) _ _   = False*/
 
 unSem :: (Sem a) -> State -> Either Fail (a, State)
 unSem (Sem s) = s
@@ -241,22 +233,22 @@ instance printing Val where
 
 derive class iTask Expression, Logical, Stmt, Val, StmtVal
 
-startProgram :: Task State
-startProgram = enterInformation "Enter the input" [] >>>= iterate state
+startSimulator :: Task State
+startSimulator = enterInformation "Enter the input" [] >>>= simulate state
                  where 
                      state = 'Map'.newMap
                      
-iterate :: State Stmt -> Task State   
-iterate state stmt = case (unSem (evalS stmt)) state of
-                         (Left m) = viewInformation "Evaluation error" [] m >>>| iterate state (Logical TRUE)
+simulate :: State Stmt -> Task State   
+simulate state stmt = case (unSem (evalS stmt)) state of
+                         (Left m) = viewInformation "Evaluation error" [] m >>>| simulate state (Logical TRUE)
                          (Right (val, state)) = (enterInformation "Enter new input" []
                                              -|| viewInformation "Value" [] (printing val)
                                              -|| viewInformation "State" [] state
                                              -|| viewInformation "Print" [] (printing stmt))
-                                             >>* [ OnAction (Action "Continue") (hasValue (iterate state))
-                                                 , OnAction (Action "Reset State") (always (iterate ('Map'.newMap) stmt))
-                                                 , OnAction (Action "Quit") (always startProgram)
+                                             >>* [ OnAction (Action "Continue") (hasValue (simulate state))
+                                                 , OnAction (Action "Reset State") (always (simulate ('Map'.newMap) stmt))
+                                                 , OnAction (Action "Quit") (always startSimulator)
                                                  ]
                                                  
 Start :: *World -> *World
-Start w = startEngine startProgram w
+Start w = startEngine startSimulator w
