@@ -152,20 +152,42 @@ evalL TRUE        = pure True
 evalL FALSE       = pure False
 //evalL (ee In ss)  = eval ee >>= \eeVal -> eval ss >>= \ssVal -> case eeVal of
 //                                                                     (IntV vl)  = case ssVal of
-//                                                                                     (SetV sr) = pure True
+//                                                                                     (SetV sr) = pure (isMember vl sr)
 //                                                                                     (IntV vr) = fail "Error, can't check if Int is a member of Int"
 //                                                                     _ = fail "Error, can't check if Set is a member of a Set or Int"
 evalL (el ==. er) = eval el >>= \elVal -> eval er >>= \erVal -> pure (elVal == erVal)
 evalL (el <=. er) = eval el >>= \elVal -> eval er >>= \erVal -> pure (elVal < erVal)
 evalL (Not log)   = evalL log >>= \logVal -> pure (not logVal)
-evalL (ll ||. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal || lrVal)
-evalL (ll &&. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal && lrVal) 
+evalL (ll ||. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal || lrVal) //Problem
+evalL (ll &&. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal && lrVal) //Problem
 
 :: Stmt
   = Expression Expression
   | Logical Logical
   | For Ident Set Stmt
   | If Logical Stmt Stmt 
+  
+:: StmtVal = Expr Val | Log Bool
+  
+evalS :: Stmt -> Sem StmtVal
+evalS (Expression expr)     = eval expr >>= \exprVal -> pure (Expr exprVal)
+evalS (Logical log)         = evalL log >>= \logVal -> pure (Log logVal)
+evalS (If cond stmtT stmtF) = evalL cond >>= \condVal -> case condVal of
+                                                           True  = evalS stmtT
+                                                           False = evalS stmtF
+evalS (For i set stmt)      = eval set >>= \setVal -> case setVal of
+                                                          (SetV sV) = forEach i sV stmt
+                                                          (IntV iV) = forEach i [0..iV] stmt
+                                                          
+forEach :: Ident [Int] Stmt -> Sem StmtVal
+forEach i set stmt = foldr seqStmt (pure (Log True)) (map (exec stmt i) set)
+
+exec :: Stmt Ident Int -> Sem StmtVal
+exec stmt i val = store i (IntV val) >>= \_ -> evalS stmt
+
+seqStmt :: (Sem StmtVal) (Sem StmtVal) -> Sem StmtVal
+seqStmt (Sem f) (Sem g) = Sem \st -> f st >>= \(_, newSt) -> g newSt 
+
   
   
 
@@ -181,4 +203,4 @@ evalL (ll &&. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal &&
 (>>>=)     :== tbind
 (>>>|) a b :== tbind a (\_ -> b)
 
-Start = evalL ((Elem 2) ==. (New [1]))
+Start = evalL (TRUE &&. FALSE)
