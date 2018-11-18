@@ -1,3 +1,6 @@
+// Brigel Pineti s1005549
+// Tim Turksema s1013838
+
 module skeletonDeepEmbedded
 
 /*
@@ -12,7 +15,7 @@ import iTasks => qualified return, >>=, >>|, sequence, forever, :: Set
 */
 import Data.Functor, Control.Applicative, Control.Monad
 import Data.Tuple, Data.Either
-
+import GenPrint
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -213,7 +216,7 @@ instance printing Logical where
     printing (e In s)    = " " +++ printing e +++ " in " +++ printing s
     printing (el ==. er) = " " +++ printing el +++ " == " +++ printing er
     printing (el <=. er) = " " +++ printing el +++ " <= " +++ printing er
-    printing (Not log)   = " Not " +++ printing log 
+    printing (Not log)   = " (Not " +++ printing log +++ ") "
     printing (el ||. er) = " " +++ printing el +++ " || " +++ printing er
     printing (el &&. er) = " " +++ printing el +++ " && " +++ printing er
          
@@ -223,9 +226,37 @@ instance printing Stmt where
     printing (If cond stmtT stmtF) = " If " +++ printing cond +++ " then " +++ printing stmtT +++ " else " +++ printing stmtF
     printing (For i set stmt)      = " For " +++ i +++ " in " +++ printing set +++ " do " +++ printing stmt +++ " od "    
 
-// === simulation
+instance printing StmtVal where
+    printing (Expr v) = " Expr " +++ printing v
+    printing (Log l)  = " Log  " +++ toString l 
+    
+instance printing Val where
+    printing (IntV int) = " IntV " +++ toString int
+    printing (SetV set) = " SetV " +++ toString set
+    
+// 4. Simulation
 
 (>>>=)     :== tbind
 (>>>|) a b :== tbind a (\_ -> b)
 
-Start = evalL (TRUE &&. FALSE)
+derive class iTask Expression, Logical, Stmt, Val, StmtVal
+
+startProgram :: Task State
+startProgram = enterInformation "Enter the input" [] >>>= iterate state
+                 where 
+                     state = 'Map'.newMap
+                     
+iterate :: State Stmt -> Task State   
+iterate state stmt = case (unSem (evalS stmt)) state of
+                         (Left m) = viewInformation "Evaluation error" [] m >>>| iterate state (Logical TRUE)
+                         (Right (val, state)) = (enterInformation "Enter new input" []
+                                             -|| viewInformation "Value" [] (printing val)
+                                             -|| viewInformation "State" [] state
+                                             -|| viewInformation "Print" [] (printing stmt))
+                                             >>* [ OnAction (Action "Continue") (hasValue (iterate state))
+                                                 , OnAction (Action "Reset State") (always (iterate ('Map'.newMap) stmt))
+                                                 , OnAction (Action "Quit") (always startProgram)
+                                                 ]
+                                                 
+Start :: *World -> *World
+Start w = startEngine startProgram w
