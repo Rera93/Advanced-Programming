@@ -145,16 +145,14 @@ instance < Val where
 evalL :: Logical -> Sem Bool
 evalL TRUE        = pure True
 evalL FALSE       = pure False
-//evalL (ee In ss)  = eval ee >>= \eeVal -> eval ss >>= \ssVal -> case eeVal of
-//                                                                     (IntV vl)  = case ssVal of
-//                                                                                     (SetV sr) = pure (isMember vl sr)
-//                                                                                     (IntV vr) = fail "Error, can't check if Int is a member of Int"
-//                                                                     _ = fail "Error, can't check if Set is a member of a Set or Int"
+evalL (ee In ss)  = eval ee >>= \eeVal -> eval ss >>= \ssVal -> case ssVal of
+                                                                     (SetV sr) = case eeVal of
+                                                                                     (IntV val) = pure (isMember val sr)                                                               
 evalL (el ==. er) = eval el >>= \elVal -> eval er >>= \erVal -> pure (elVal == erVal)
 evalL (el <=. er) = eval el >>= \elVal -> eval er >>= \erVal -> pure (elVal < erVal)
 evalL (Not log)   = evalL log >>= \logVal -> pure (not logVal)
-evalL (ll ||. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal || lrVal) //Problem
-evalL (ll &&. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal && lrVal) //Problem
+evalL (ll ||. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal || lrVal)
+evalL (ll &&. lr) = evalL ll >>= \llVal -> evalL lr >>= \lrVal -> pure (llVal && lrVal) 
 
 // 2.2 Statements
 
@@ -193,10 +191,11 @@ instance printing Ident where
     printing id = id
     
 instance printing Expression where
-    printing (New set)     = " New: " +++ toString set
-    printing (Elem e)      = " Elem: " +++ toString e
-    printing (Variable id) = " Variable: " +++ id
-    printing (Size expr)   = " Size: " +++ printing expr
+    printing (New [])      = "[]"   
+    printing (New [x:xs])  = "[ " +++ toString x +++ ", " +++ (printing (New xs)) +++ " ]"
+    printing (Elem e)      = toString e
+    printing (Variable id) = " ValueOf(" +++ id +++ ") "
+    printing (Size expr)   = " SizeOf(" +++ printing expr +++ ") "
     printing (el +. er)    = " " +++ printing el +++ " + " +++ printing er
     printing (el -. er)    = " " +++ printing el +++ " - " +++ printing er
     printing (el *. er)    = " " +++ printing el +++ " * " +++ printing er
@@ -215,16 +214,17 @@ instance printing Logical where
 instance printing Stmt where
     printing (Logical log)         = " " +++ printing log
     printing (Expression expr)     = " " +++ printing expr
-    printing (If cond stmtT stmtF) = " If " +++ printing cond +++ " then " +++ printing stmtT +++ " else " +++ printing stmtF
-    printing (For i set stmt)      = " For " +++ i +++ " in " +++ printing set +++ " do " +++ printing stmt +++ " od "    
+    printing (If cond stmtT stmtF) = " If (" +++ printing cond +++ ") then {" +++ printing stmtT +++ "} else {" +++ printing stmtF +++ "} "
+    printing (For i set stmt)      = " For (" +++ i +++ " in " +++ printing set +++ ") { " +++ printing stmt +++ " } "    
 
 instance printing StmtVal where
     printing (Expr v) = " Expr " +++ printing v
     printing (Log l)  = " Log  " +++ toString l 
     
 instance printing Val where
-    printing (IntV int) = " IntV " +++ toString int
-    printing (SetV set) = " SetV " +++ toString set
+    printing (IntV int)    = " IntV " +++ toString int
+    printing (SetV [])     = "[]"
+    printing (SetV [x:xs]) = " [" +++ toString x +++ ", " +++ (printing (SetV xs)) +++ "]"
     
 // 4. Simulation
 
@@ -243,7 +243,7 @@ simulate state stmt = case (unSem (evalS stmt)) state of
                          (Left m) = viewInformation "Evaluation error" [] m >>>| simulate state (Logical TRUE)
                          (Right (val, state)) = (enterInformation "Enter new input" []
                                              -|| viewInformation "Value" [] (printing val)
-                                             -|| viewInformation "State" [] state
+                                             -|| viewInformation "State" [ViewAs (\s -> 'Map'.toList s)] state
                                              -|| viewInformation "Print" [] (printing stmt))
                                              >>* [ OnAction (Action "Continue") (hasValue (simulate state))
                                                  , OnAction (Action "Reset State") (always (simulate ('Map'.newMap) stmt))
