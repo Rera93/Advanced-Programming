@@ -246,7 +246,7 @@ simulate state stmt = case (unSem (evalS stmt)) state of
                                              -|| viewInformation "State" [ViewAs (\s -> 'Map'.toList s)] state
                                              -|| viewInformation "Print" [] (printing stmt))
                                              >>* [ OnAction (Action "Continue") (hasValue (simulate state))
-                                                 , OnAction (Action "Reset State") (always (simulate ('Map'.newMap) stmt))
+                                                 , OnAction (Action "Reset State") (always (simulate 'Map'.newMap (Logical TRUE)))
                                                  , OnAction (Action "Quit") (always startSimulator)
                                                  ]
                                                  
