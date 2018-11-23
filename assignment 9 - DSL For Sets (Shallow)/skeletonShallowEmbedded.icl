@@ -9,19 +9,18 @@ module skeletonShallowEmbedded
 */
 
 import Data.Functor, Control.Applicative, Control.Monad
-import Data.Tuple, Data.Either
-import GenPrint
-
+import Data.Tuple, Data.Either, Data.List
+import StdString
 import qualified Data.List as List
 import qualified Data.Map as Map
 // use this as: 'List'.union
 
 // 1. State
 
-:: Sem a = Sem (State -> Either Fail (a, State))
+:: Eval a = Eval (State -> Either Fail (a, State))
 :: Fail :== String
 
-:: Views a = {eval :: Sem a, print :: [String] -> [String]}
+:: Sem a = {eval :: Eval a, print :: [String] -> [String]}
 
 :: State :== 'Map'.Map Ident Dynamic
 :: Ident  :== String
@@ -31,31 +30,46 @@ import qualified Data.Map as Map
    In addition, we believe that using the same structure for State as in
    the previous exercise might complicate things in this exercise. r*/
    
-instance Functor Sem where
-  //fmap :: (a->b) (Sem a) -> (Sem b)
-    fmap atob (Sem g) = Sem \st -> case g st of 
+instance Functor Eval where
+  //fmap :: (a->b) (Eval a) -> (Eval b)
+    fmap atob (Eval g) = Eval \st -> case g st of 
                                        (Left m)        = Left m
                                        (Right (a, st)) = Right (atob a, st)
 
-instance Applicative Sem where
-  //pure :: a -> Sem a
-    pure a = Sem \st -> Right (a, st)
-  //<*> infixl 4 :: (Sem (a->b)) (Sem a) -> Sem b 
-    <*> (Sem f) (Sem g) = Sem \st -> case f st of
+instance Applicative Eval where
+  //pure :: a -> Eval a
+    pure a = Eval \st -> Right (a, st)
+  //<*> infixl 4 :: (Eval (a->b)) (Eval a) -> Eval b 
+    <*> (Eval f) (Eval g) = Eval \st -> case f st of
                                          (Right (atob, st)) = case g st of
                                                                   (Right (a, st)) = Right (atob a, st)
                                                                   (Left m)        = Left m
                                          (Left m)           = Left m
 
-instance Monad Sem where
-  //bind :: (Sem a) (a-> Sem b) -> Sem b
-    bind (Sem g) atomb = Sem \st -> case g st of 
+instance Monad Eval where
+  //bind :: (Eval a) (a-> Eval b) -> Eval b
+    bind (Eval g) atomb = Eval \st -> case g st of 
                                         (Left m)        = Left m
-                                        (Right (a, st)) = unSem (atomb a) st
+                                        (Right (a, st)) = unEval (atomb a) st
                                         
-unSem :: (Sem a) -> State -> Either Fail (a, State)
-unSem (Sem s) = s   
+unEval :: (Eval a) -> State -> Either Fail (a, State)
+unEval (Eval e) = e   
+
+// 2. Integer Expressions 
+
+:: Element :== Sem Int
+:: Set     :== Sem [Int] 
+
+integer :: Int -> Element
+integer x = {eval = pure x, print = \p -> [toString x : p]}
+
+size :: Set -> Element
+size set = {eval = fmap length set.eval, print = \p -> ["sizeOf(" : set.print [")" : p]]}
+
+createSet :: [Int] -> Set
+createSet set = {eval = pure set, print = \p -> [toString set : p]}
+
   
 
                                                  
-Start = "eval (True)"
+Start = size (createSet [3, 4])
