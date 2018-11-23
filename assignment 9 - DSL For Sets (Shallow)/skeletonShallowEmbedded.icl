@@ -30,6 +30,31 @@ import qualified Data.Map as Map
    as a great opportunity to try it and learn from it. 
    In addition, we believe that using the same structure for State as in
    the previous exercise might complicate things in this exercise. r*/
+   
+instance Functor Sem where
+  //fmap :: (a->b) (Sem a) -> (Sem b)
+    fmap atob (Sem g) = Sem \st -> case g st of 
+                                       (Left m)        = Left m
+                                       (Right (a, st)) = Right (atob a, st)
+
+instance Applicative Sem where
+  //pure :: a -> Sem a
+    pure a = Sem \st -> Right (a, st)
+  //<*> infixl 4 :: (Sem (a->b)) (Sem a) -> Sem b 
+    <*> (Sem f) (Sem g) = Sem \st -> case f st of
+                                         (Right (atob, st)) = case g st of
+                                                                  (Right (a, st)) = Right (atob a, st)
+                                                                  (Left m)        = Left m
+                                         (Left m)           = Left m
+
+instance Monad Sem where
+  //bind :: (Sem a) (a-> Sem b) -> Sem b
+    bind (Sem g) atomb = Sem \st -> case g st of 
+                                        (Left m)        = Left m
+                                        (Right (a, st)) = unSem (atomb a) st
+                                        
+unSem :: (Sem a) -> State -> Either Fail (a, State)
+unSem (Sem s) = s   
   
 
                                                  
