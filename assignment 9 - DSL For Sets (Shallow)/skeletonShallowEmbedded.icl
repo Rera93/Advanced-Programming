@@ -7,10 +7,11 @@ module skeletonShallowEmbedded
   Advanved Progrmming 2018, Assignment 9
   Pieter Koopman, pieter@cs.ru.nl
 */
-
+from Data.Func import $ 
 import Data.Functor, Control.Applicative, Control.Monad
 import Data.Tuple, Data.Either, Data.List
 import StdString
+import StdDynamic
 import qualified Data.List as List
 import qualified Data.Map as Map
 // use this as: 'List'.union
@@ -55,21 +56,85 @@ instance Monad Eval where
 unEval :: (Eval a) -> State -> Either Fail (a, State)
 unEval (Eval e) = e   
 
-// 2. Integer Expressions 
+// 2. Integer & 3. Set Expressions 
 
 :: Element :== Sem Int
 :: Set     :== Sem [Int] 
+
+eval :: (Sem a) -> Either Fail (a, State)
+eval sem = unEval sem.eval 'Map'.newMap
+
+store :: Ident (Eval a) -> Eval a | TC a
+store i (Eval e) = Eval \st -> case e st of
+                                   (Left m)        = Left m 
+                                   (Right (a, st)) = Right (a, 'Map'.put i (dynamic a) st)
+                                   
+                                   
+/*read :: Ident -> Eval a | TC a
+read i = Eval \st -> case 'Map'.get i st of
+                         unpack (x :: a^) = Right (x , st)
+                         unpack _ = Left ("The type of variable " +++ i +++ "does not match") 
+                         _ = Left ("Variable " +++ i +++ " could not be found")*/
 
 integer :: Int -> Element
 integer x = {eval = pure x, print = \p -> [toString x : p]}
 
 size :: Set -> Element
-size set = {eval = fmap length set.eval, print = \p -> ["sizeOf(" : set.print [")" : p]]}
+size set = {eval = length <$> set.eval, print = \p -> ["sizeOf(" : set.print [")" : p]]}
 
-createSet :: [Int] -> Set
-createSet set = {eval = pure set, print = \p -> [toString set : p]}
+newSet :: [Int] -> Set
+newSet set = {eval = pure set, print = \p -> [toString set : p]}
 
-  
+//var :: Ident - Sem a | TC a
+//var i = {eval = read i, print = \p -> [i : p] } 
+
+instance + (Sem a) | + a where
+    (+) el er = {eval = (+) <$> el.eval <*> er.eval, print = \p -> el.print ["+" : er.print p]}
+    
+instance - (Sem a) | - a where
+    (-) el er = {eval = (-) <$> el.eval <*> er.eval, print = \p -> el.print ["+" : er.print p]}
+    
+instance * (Sem a) | * a where
+    (*) el er = {eval = (*) <$> el.eval <*> er.eval, print = \p -> el.print ["*" : er.print p]} 
+    
+(=.) infixl 2 :: Ident (Sem a) -> Sem a | TC a      // Ident =. Dynamic 
+(=.) i sem = {eval = store i sem.eval, print = \p -> [i, "=" : sem.print p]}
+
+(+=) infixl 4 :: Element Set -> Set                 // Int +. [Int] 
+(+=) elem set = { eval = (\e s -> 'List'.union [e] s) <$> elem.eval <*> set.eval
+                , print = \p -> elem.print ["+" : set.print p]
+                }    
+                
+(=+) infixl 4 :: Set Element -> Set                // [Int] +. Int
+(=+) set elem = { eval = (\s e -> 'List'.union s [e]) <$> set.eval <*> elem.eval
+                , print = \p -> set.print ["+" : elem.print p]
+                }
+                
+(=-) infixl 4 :: Set Element -> Set               // [Int] -. Int
+(=-) set elem = { eval = (\s e -> 'List'.difference s [e]) <$> set.eval <*> elem.eval
+                , print = \p -> set.print ["-" : elem.print p]
+                }
+                
+(=*) infixl 4 :: Set Element -> Set               // [Int] *. Int 
+(=*) set elem = { eval = (\s e -> 'List'.intersect s [e]) <$> set.eval <*> elem.eval
+                , print = \p -> set.print ["*" : elem.print p]
+                }
+               
+instance + [a] | == a where
+    (+) ll lr = 'List'.union ll lr
+
+instance - [a] | == a where
+    (-) ll lr = 'List'.difference ll lr
+    
+instance * [a] | == a where
+    (*) ll lr = 'List'.intersect ll lr
+                
+// Boolean Expressions
+
+// 4. Statements
+
 
                                                  
-Start = size (createSet [3, 4])
+//Start = eval (integer 2 + integer 3)
+//Start = size (createSet [3, 4])
+Start = eval ("a" =. (integer 2 += newSet [3, 4]))
