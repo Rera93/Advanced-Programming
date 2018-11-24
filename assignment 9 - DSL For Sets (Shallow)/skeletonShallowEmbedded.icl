@@ -12,6 +12,7 @@ import Data.Functor, Control.Applicative, Control.Monad
 import Data.Tuple, Data.Either, Data.List
 import StdString
 import StdDynamic
+import StdBool
 import qualified Data.List as List
 import qualified Data.Map as Map
 // use this as: 'List'.union
@@ -110,7 +111,7 @@ instance * (Sem a) | * a where
                 , print = \p -> set.print ["+" : elem.print p]
                 }
                 
-(=-) infixl 4 :: Set Element -> Set               // [Int] -. Int
+(=-) infixl 4 :: Set Element -> Set               // [Int] -. Int   (delete Int from Set)
 (=-) set elem = { eval = (\s e -> 'List'.difference s [e]) <$> set.eval <*> elem.eval
                 , print = \p -> set.print ["-" : elem.print p]
                 }
@@ -131,10 +132,48 @@ instance * [a] | == a where
                 
 // Boolean Expressions
 
+(In) infixl 4 :: Element Set -> Sem Bool
+(In) elem set = { eval = isMember <$> elem.eval <*> set.eval
+                , print = \p -> elem.print ["In" : set.print p]
+                } 
+(==.) infix 4 :: (Sem a) (Sem a) -> Sem Bool | == a
+(==.) semL semR = { eval = (==) <$> semL.eval <*> semR.eval
+                  , print = \p -> semL.print ["==" : semR.print p]
+                  } 
+                  
+(<=.) infixl 4 :: Element Element -> Sem Bool
+(<=.) elemL elemR = { eval = (<=) <$> elemL.eval <*> elemR.eval
+                    , print = \p -> elemL.print ["<=" : elemR.print p]
+                    }
+                    
+(||.) infixl 4 :: (Sem Bool) (Sem Bool) -> Sem Bool
+(||.) semL semR = { eval = (||) <$> semL.eval <*> semR.eval
+                  , print = \p -> semL.print ["||" : semR.print p]
+                  }
+
+(&&.) infixl 4 :: (Sem Bool) (Sem Bool) -> Sem Bool
+(&&.) semL semR = { eval = (&&) <$> semL.eval <*> semR.eval
+                  , print = \p -> semL.print ["&&" : semR.print p]
+                  }
+
+(!.) :: (Sem Bool) -> Sem Bool
+(!.) sem = { eval = not <$> sem.eval
+           , print = \p -> ["!" : sem.print p]
+           }
+          
+true :: Sem Bool
+true = { eval = pure True, print = \p -> ["True" : p]}
+
+false :: Sem Bool
+false = { eval = pure False, print = \p -> ["False" : p]}
+
 // 4. Statements
 
 
                                                  
 //Start = eval (integer 2 + integer 3)
 //Start = size (createSet [3, 4])
-Start = eval ("a" =. (integer 2 += newSet [3, 4]))
+//Start = eval ("a" =. (integer 2 += newSet [3, 4]))
+//Start = eval ((true &&. false) ||. false)
+//Start = eval ((newSet [2, 3]) ==. (newSet [2, 4]))
+Start = eval (newSet [2, 3, 4] - newSet [2, 3])
