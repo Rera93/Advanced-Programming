@@ -94,7 +94,11 @@ size :: Set -> Element
 size set = {eval = length <$> set.eval, print = \p -> ["sizeOf(" : set.print [")" : p]]}
 
 newSet :: [Int] -> Set
-newSet set = {eval = pure set, print = \p -> [toString set : p]} // not work
+newSet set = {eval = pure set, print = \p -> [printSet set : p]}
+
+printSet :: [Int] -> String
+printSet []     = "[]" 
+printSet [x:xs] = "[ " +++ toString x +++ ", " +++ (printSet xs) +++ " ]"  
 
 instance + Element where
     (+) el er = {eval = (+) <$> el.eval <*> er.eval, print = \p -> el.print ["+" : er.print p]}
@@ -174,20 +178,21 @@ instance ==. Set where
     (==.) setL setR = { eval = (==) <$> setL.eval <*> setR.eval
                       , print = \p ->  setL.print ["==" : setR.print p]
                       }
-/*instance ==. Set Element where
-    (==.) set elem = { eval = fail "Cannot apply ==. between a set and an element"
-                     , print = \p -> set.print ["==" : elem.print p]
-                     }
-                     
-instance ==. Element Set where
-    (==.) elem set = { eval = fail "Cannot apply ==. between an element and a set" 
-                     , print = \p -> elem.print ["==" : set.print p]
-                     }*/
                     
 instance ==. Element where
     (==.) elemL elemR = { eval = (==) <$> elemL.eval <*> elemR.eval
                         , print = \p -> elemL.print ["==" : elemR.print p]
                         }
+                        
+(..==) infix 4 :: Set Element -> Sem Bool
+(..==) set elem = { eval = fail "Cannot apply == between a set and an element"
+                  , print = \p -> set.print ["==" : elem.print p]
+                  } 
+                 
+(==..) infix 4 :: Element Set -> Sem Bool
+(==..) elem set = { eval = fail "Cannot apply == between an element and a set" 
+                  , print = \p -> elem.print ["==" : set.print p]
+                  }
                                           
 (<=.) infixl 4 :: Element Element -> Sem Bool
 (<=.) elemL elemR = { eval = (<=) <$> elemL.eval <*> elemR.eval
@@ -254,5 +259,6 @@ prettyPrint sem = sem.print []
 //Start = prettyPrint ("a" =. integer 2)
 //Start = prettyPrint (If true (integer 2) (integer 3 + integer 2))
 //Start = eval (If (integer 2 ==. newSet [2, 3]) (integer 2) (integer 3 + integer 2))
-Start = eval ((For "a" (newSet [4,3]) ("b" =. ((integer 1) + (var "a")))) :. ((var "b") - integer 4))  
+//Start = eval ((For "a" (newSet [4,3]) ("b" =. ((integer 1) + (var "a")))) :. ((var "b") - integer 4))  
 //Start = eval (("b" =. integer 2) :. (var "b" + integer 3))
+Start = prettyPrint (newSet [2,4]) 
