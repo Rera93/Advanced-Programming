@@ -18,7 +18,7 @@ import StdEnv
 import StdBool
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Text
+import Text => qualified join
 // use this as: 'List'.union
 
 // 1. State
@@ -109,7 +109,7 @@ instance - Element where
 instance * Element where
     (*) el er = {eval = (*) <$> el.eval <*> er.eval, print = \p -> el.print ["*" : er.print p]}
     
-// . symbolized a Set
+// . symbolizes a Set
 // +,-,* symbolize an Element
 // E.g. The union between an Element and a Set is represented as (+.)
 // E.g. The difference between a Set and an Element is represented as (.-)  
@@ -241,15 +241,14 @@ For i set sem = { eval = set.eval >>= \setVal -> case setVal of
 
 // 5. Printing 
                 
-prettyPrint :: (Sem a) -> [String]
-prettyPrint sem = sem.print []
-//'Text'.concat (sem.print [])
+prettyPrint :: (Sem a) -> String
+prettyPrint sem = concat (sem.print [])
 
 
 
                                                  
 //Start = eval (integer 2 + integer 3)
-//Start = size (createSet [3, 4])
+//Start = size (newSet [3, 4])
 //Start = eval ("a" =. (integer 2 +. newSet [3, 4]))
 //Start = eval ((true &&. false) ||. false)
 //Start = eval ((newSet [2, 3]) ==. (newSet [2, 4]))
@@ -261,4 +260,5 @@ prettyPrint sem = sem.print []
 //Start = eval (If (integer 2 ==. newSet [2, 3]) (integer 2) (integer 3 + integer 2))
 //Start = eval ((For "a" (newSet [4,3]) ("b" =. ((integer 1) + (var "a")))) :. ((var "b") - integer 4))  
 //Start = eval (("b" =. integer 2) :. (var "b" + integer 3))
-Start = prettyPrint (newSet [2,4]) 
+Start = prettyPrint (integer 2 + integer 3)
+ 
