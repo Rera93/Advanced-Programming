@@ -18,6 +18,7 @@ import StdEnv
 import StdBool
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Text
 // use this as: 'List'.union
 
 // 1. State
@@ -34,7 +35,7 @@ import qualified Data.Map as Map
 /* Since we have never used Dynamic before, we thought of this exercise
    as a great opportunity to try it and learn from it. 
    In addition, we believe that using the same structure for State as in
-   the previous exercise might complicate things in this exercise. r*/
+   the previous exercise might complicate things in this exercise. */
    
 instance Functor Eval where
   //fmap :: (a->b) (Eval a) -> (Eval b)
@@ -119,7 +120,7 @@ size :: Set -> Element
 size set = {eval = length <$> set.eval, print = \p -> ["sizeOf(" : set.print [")" : p]]}
 
 newSet :: [Int] -> Set
-newSet set     = {eval = pure set, print = \p -> [toString set : p]}
+newSet set = {eval = pure set, print = \p -> [toString set : p]} // not work
 
 instance + Element where
     (+) el er = {eval = (+) <$> el.eval <*> er.eval, print = \p -> el.print ["+" : er.print p]}
@@ -174,15 +175,15 @@ instance - Set where
 instance * Set where
     (*) sl sr = {eval = 'List'.intersect <$> sl.eval <*> sr.eval, print = \p -> sl.print ["*" : sr.print p]}
 
-class Variable a where
-    var :: Ident -> a
-    (=.) infix 2 :: Ident a -> a
+class Variable a | TC a where
+    var :: Ident -> Sem a
+    (=.) infix 2 :: Ident (Sem a) -> Sem a
     
-instance Variable Element where
+instance Variable Int where
       var i      = {eval = read i, print = \p -> ["valueOf",i : p]}
       (=.) i sem = {eval = store i sem.eval, print = \p -> [i, "=" : sem.print p]} 
     
-instance Variable Set where
+instance Variable [Int] where
       var i      = {eval = read i, print = \p -> ["valueOf",i : p]}
       (=.) i sem = {eval = store i sem.eval, print = \p -> [i, "=" : sem.print p]}  
                 
@@ -193,13 +194,13 @@ instance Variable Set where
                 , print = \p -> elem.print ["In" : set.print p]
                 }
                 
-class (==.) infix 4 a b :: a b -> Sem Bool
+class (==.) infix 4 a :: a a -> Sem Bool
  
-instance ==. Set Set where
+instance ==. Set where
     (==.) setL setR = { eval = (==) <$> setL.eval <*> setR.eval
                       , print = \p ->  setL.print ["==" : setR.print p]
                       }
-instance ==. Set Element where
+/*instance ==. Set Element where
     (==.) set elem = { eval = fail "Cannot apply ==. between a set and an element"
                      , print = \p -> set.print ["==" : elem.print p]
                      }
@@ -207,9 +208,9 @@ instance ==. Set Element where
 instance ==. Element Set where
     (==.) elem set = { eval = fail "Cannot apply ==. between an element and a set" 
                      , print = \p -> elem.print ["==" : set.print p]
-                     }
+                     }*/
                     
-instance ==. Element Element where
+instance ==. Element where
     (==.) elemL elemR = { eval = (==) <$> elemL.eval <*> elemR.eval
                         , print = \p -> elemL.print ["==" : elemR.print p]
                         }
@@ -263,8 +264,8 @@ For i set sem = { eval = set.eval >>= \setVal -> case setVal of
                 
 prettyPrint :: (Sem a) -> [String]
 prettyPrint sem = sem.print []
+//'Text'.concat (sem.print [])
 
-//need to concatenate [String] -> String   
 
 
                                                  
@@ -279,5 +280,5 @@ prettyPrint sem = sem.print []
 //Start = prettyPrint ("a" =. integer 2)
 //Start = prettyPrint (If true (integer 2) (integer 3 + integer 2))
 //Start = eval (If (integer 2 ==. newSet [2, 3]) (integer 2) (integer 3 + integer 2))
-//Start = eval ((For "a" (newSet [4,3]) ("b" =. ((integer 1) + (integer 2)))) :. (var "b"))  
-Start = eval (var "b" + integer 3)
+Start = eval ((For "a" (newSet [4,3]) ("b" =. ((integer 1) + (var "a")))) :. ((var "b") - integer 4))  
+//Start = eval (var "b" + integer 3)
