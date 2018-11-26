@@ -77,36 +77,10 @@ store :: Ident (Eval a) -> Eval a | TC a
 store i (Eval e) = Eval \st -> case e st of
                                    (Left m)        = Left m 
                                    (Right (a, st)) = Right (a, 'Map'.put i (dynamic a) st)                                
-                                   
-/*class read a :: Ident -> a | TC a
-instance read Element where
-    read i = { eval = Eval \st -> case 'Map'.get i st of
-                                  Just (x :: a^) = pure x
-                                  Just _ = Left ("The type of variable " +++ i +++ "does not match")
-                                  _ = Left ("Variable " +++ i +++ " could not be found")                    
- 
-             , print = \p -> ["valueOf", i : p]
-             }
-                         
-instance read Set where
-    read i = { eval = Eval \st -> case 'Map'.get i st of
-                                  Just (x :: a^) = pure x
-                                  Just _ = Left ("The type of variable " +++ i +++ "does not match")
-                                  _ = Left ("Variable " +++ i +++ " could not be found")                    
- 
-         , print = \p -> ["valueOf", i : p]
-         }*/
-         
-/*read :: Ident -> Sem a | TC a
-read i = Eval \st -> case 'Map'.get i st of
-                         Just (x :: a^) = {eval = pure x, print = \p -> p}
-                         Just _ = {eval = fail ("The type of variable " +++ i +++ "does not match"), print = \p -> p}
-                         _ = {eval = fail ("Variable " +++ i +++ " could not be found"), print = \p -> p}                       
-*/
 
 read :: Ident -> Eval a | TC a
 read i = Eval \st -> case 'Map'.get i st of
-                                  Just (x :: a^) = pure x
+                                  Just (x :: a^) = Right (x, st)
                                   Just _ = Left ("The type of variable " +++ i +++ "does not match")
                                   _ = Left ("Variable " +++ i +++ " could not be found")
 
@@ -281,4 +255,4 @@ prettyPrint sem = sem.print []
 //Start = prettyPrint (If true (integer 2) (integer 3 + integer 2))
 //Start = eval (If (integer 2 ==. newSet [2, 3]) (integer 2) (integer 3 + integer 2))
 Start = eval ((For "a" (newSet [4,3]) ("b" =. ((integer 1) + (var "a")))) :. ((var "b") - integer 4))  
-//Start = eval (var "b" + integer 3)
+//Start = eval (("b" =. integer 2) :. (var "b" + integer 3))
