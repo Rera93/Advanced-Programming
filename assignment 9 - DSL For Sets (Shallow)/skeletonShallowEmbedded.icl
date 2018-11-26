@@ -103,14 +103,11 @@ read i = Eval \st -> case 'Map'.get i st of
                          _ = {eval = fail ("Variable " +++ i +++ " could not be found"), print = \p -> p}                       
 */
 
-read :: Ident -> Sem a | TC a
-read i = { eval = Eval \st -> case 'Map'.get i st of
+read :: Ident -> Eval a | TC a
+read i = Eval \st -> case 'Map'.get i st of
                                   Just (x :: a^) = pure x
                                   Just _ = Left ("The type of variable " +++ i +++ "does not match")
-                                  _ = Left ("Variable " +++ i +++ " could not be found")                    
- 
-         , print = \p -> ["valueOf", i : p]
-         }
+                                  _ = Left ("Variable " +++ i +++ " could not be found")
 
 
                          
@@ -133,31 +130,40 @@ instance - Element where
 instance * Element where
     (*) el er = {eval = (*) <$> el.eval <*> er.eval, print = \p -> el.print ["*" : er.print p]}
     
-class (+.) infixl 6 a b :: a b -> Set
+// . symbolized a Set
+// +,-,* symbolize an Element
+// E.g. The union between an Element and a Set is represented as (+.)
+// E.g. The difference between a Set and an Element is represented as (.-)  
 
-instance +. Element Set where
-    (+.) elem set = { eval = (\e s -> 'List'.union [e] s) <$> elem.eval <*> set.eval
-                    , print = \p -> elem.print ["+" : set.print p]
-                    } 
+(+.) :: Element Set -> Set
+(+.) elem set = { eval = (\e s -> 'List'.union [e] s) <$> elem.eval <*> set.eval
+                     , print = \p -> elem.print ["+" : set.print p]
+                     }
+                     
+(.+) :: Set Element -> Set
+(.+) set elem = { eval = (\s e -> 'List'.union s [e]) <$> set.eval <*> elem.eval
+                     , print = \p -> set.print ["+" : elem.print p]
+                     }  
                     
-instance +. Set Element where
-    (+.) set elem = { eval = (\s e -> 'List'.union s [e]) <$> set.eval <*> elem.eval
-                    , print = \p -> set.print ["+" : elem.print p]
-                    }
-    
-class (-.) infixl 6 a b :: a b -> Set
-
-instance -. Set Element where
-    (-.) set elem = { eval = (\s e -> 'List'.difference s [e]) <$> set.eval <*> elem.eval
-                    , print = \p -> set.print ["-" : elem.print p]
-                    }
+(.-) :: Set Element -> Set
+(.-) set elem = { eval = (\s e -> 'List'.difference s [e]) <$> set.eval <*> elem.eval
+                     , print = \p -> set.print ["-" : elem.print p]
+                     }
+                     
+(-.) :: Element Set -> Set
+(-.) elem set = { eval = fail "Cannot apply subtraction from an Element to a Set"
+                     , print = \p -> set.print ["-" : elem.print p]
+                     }
                     
-class (*.) infixl 7 a b :: a b -> Set 
-
-instance *. Set Element where
-    (*.) set elem = { eval = (\s e -> 'List'.intersect s [e]) <$> set.eval <*> elem.eval
-                    , print = \p -> set.print ["*" : elem.print p]
-                    }
+(.*) :: Set Element -> Set
+(.*) set elem = { eval = (\s e -> 'List'.intersect s [e]) <$> set.eval <*> elem.eval
+                          , print = \p -> set.print ["*" : elem.print p]
+                          }
+                          
+(*.) :: Element Set -> Set
+(*.) elem set = { eval = fail "Cannot apply multiplication from an Element to a Set"
+                          , print = \p -> set.print ["*" : elem.print p]
+                          } 
                
 instance + Set where
     (+) sl sr = {eval = 'List'.union <$> sl.eval <*> sr.eval, print = \p -> sl.print ["+" : sr.print p]}
@@ -173,13 +179,11 @@ class Variable a where
     (=.) infix 2 :: Ident a -> a
     
 instance Variable Element where
-    //var i      = {eval = read i, print = \p -> ["valueOf",i : p]}
-      var i      = read i
+      var i      = {eval = read i, print = \p -> ["valueOf",i : p]}
       (=.) i sem = {eval = store i sem.eval, print = \p -> [i, "=" : sem.print p]} 
     
 instance Variable Set where
-    //var i      = {eval = read i, print = \p -> ["valueOf",i : p]}
-      var i      = read i
+      var i      = {eval = read i, print = \p -> ["valueOf",i : p]}
       (=.) i sem = {eval = store i sem.eval, print = \p -> [i, "=" : sem.print p]}  
                 
 // Boolean Expressions
@@ -276,4 +280,4 @@ prettyPrint sem = sem.print []
 //Start = prettyPrint (If true (integer 2) (integer 3 + integer 2))
 //Start = eval (If (integer 2 ==. newSet [2, 3]) (integer 2) (integer 3 + integer 2))
 //Start = eval ((For "a" (newSet [4,3]) ("b" =. ((integer 1) + (integer 2)))) :. (var "b"))  
-Start = eval (var "b")
+Start = eval (var "b" + integer 3)
