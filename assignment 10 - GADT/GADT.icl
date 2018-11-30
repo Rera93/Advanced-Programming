@@ -114,9 +114,22 @@ eval (Wait bma) s = Result s
 eval (actionL :. actionR) s = case eval actionL s of
 										(Result r) =  eval actionR r
 										_ 		   =  Error "Error"
+eval (WhileContainerBelow (action) (bma)) s = case s.craneOnQuay of
+										True = case s.onQuay of
+													[] = Result s
+													xs = case eval action s of 
+																Result s` = eval (WhileContainerBelow action bma) s`
+										_    = case s.onShip of
+													[] = Result s
+													xs = case eval action s of
+																Result s` = eval (WhileContainerBelow action bma) s`
 eval _ _ = Error "Fail" 
 /* eval (WhileContainerBelow action) s
 
 eval action       = unEval action initialState 
-/*
-Start = eval (MoveToQuay bm bm :. MoveDown bm bm :. Lock bm bm :. MoveUp bm bm :. MoveToShip bm bm :. MoveDown bm bm :. UnLock bm bm) initialState
+*/
+moveFromQuayToShip = (MoveDown bm bm :. Lock bm bm :. MoveUp bm bm :. MoveToShip bm bm :. MoveDown bm bm :. UnLock bm bm :. MoveUp bm bm :. MoveToQuay bm bm)
+//test = eval moveFromQuayToShip initialState
+test = eval (WhileContainerBelow (moveFromQuayToShip) bm) initialState
+
+Start = test
