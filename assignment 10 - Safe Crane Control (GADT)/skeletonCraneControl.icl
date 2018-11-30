@@ -33,15 +33,17 @@ import Text => qualified join
   | MoveDown            (BM a High)              (BM b Low)                // move crane from top to down position
   | Lock                (BM a Low)               (BM b Low)                // lock the top container on the stack 
   | UnLock              (BM a Low)               (BM b Low)                // unlocks the container (put it in stack) 
-  | Wait                (BM a (Either High Low)) (BM b (Either High Low))  // do nothing
-  | (:.) infixl 1       (Action a b)             (Action a b)              // sequence of two actions
-  | WhileContainerBelow (Action a b)                                       /* repeat action while there is a container 
+  | Wait                (BM a b)                                           // do nothing
+  | E.i: (:.) infixl 1  (Action a i)             (Action i b)              // sequence of two actions
+  | WhileContainerBelow (BM a b)                 (Action a b)              /* repeat action while there is a container 
                                                                               at current pos */
-  
 :: High = High
 :: Low  = Low
 
 :: BM a b = { f :: a -> b, t :: b -> a } // bimap 
+
+bm :: BM a a
+bm = { f = id, t = id }
 
 // 2. Evaluation
 
@@ -66,54 +68,27 @@ initialState = { onShip      = []
                , locked      = Nothing
                } 
               
-:: Fail :== String
-              
-:: Eval a = Eval (State -> ErrorOrResult Fail (a, State))
+:: Fail :== String 
 
-eval :: (Eval a) -> ErrorOrResult Fail (a, State)
-eval action       = unEval action initialState 
+eval :: (Action a b) State -> ErrorOrResult Fail State   
+eval (MoveToShip bma bmb) s            = Result {State | s & craneOnQuay = False}
+eval (MoveToQuay bma bmb) s            = Result {State | s & craneOnQuay = True}
+eval (MoveUp     bma bmb) s            = Result {State | s & craneUp     = True}
+eval (MoveDown   bma bmb) s            = Result {State | s & craneUp     = False}
+eval (Lock       bma bmb) s            = Result {State | s & locked      = if (s.craneOnQuay) (Just (head s.onQuay)) (Just (head s.onShip))
+                                                           , onShip      = if (s.craneOnQuay) (s.onShip) ('List'.delete (head s.onShip) s.onShip)
+                                                           , onQuay      = if (s.craneOnQuay) ('List'.delete (head s.onQuay) s.onQuay) (s.onQuay)} 
+eval (UnLock     bma bmb) s            = Result {State | s & locked      = Nothing
+                                                           , onShip      = if (s.craneOnQuay) (s.onShip) ('List'.union [head s.onQuay] s.onShip)
+                                                           , onQuay      = if (s.craneOnQuay) ('List'.union [head s.onShip] s.onQuay) (s.onQuay)}
+eval (Wait       bm)      s            = Result s
+eval (actionL :. actionR) s            = case eval actionR s of
+                                             Result s` = eval actionL s`
+                                             Error m   = Error m  
+eval _ s = Error "error"
+//eval (WhileContainerBelow bm action) s = 
 
-unEval :: (Eval a) -> State -> ErrorOrResult Fail (a, State)
-unEval (Eval action) = action 
+//loadShip :: Action a b
+//loadShip = 
 
-fail :: Fail -> Eval a 
-fail m = Eval \_ -> Error m 
-   
-instance Functor Eval where
-  //fmap :: (a->b) (Eval a) -> (Eval b)
-    fmap atob (Eval g) = Eval \st -> case g st of 
-                                       (Error m)        = Error m
-                                       (Result (a, st)) = Result (atob a, st)
-
-instance Applicative Eval where
-  //pure :: a -> Eval a
-    pure a = Eval \st -> Result (a, st)
-  //<*> infixl 4 :: (Eval (a->b)) (Eval a) -> Eval b 
-    <*> (Eval f) (Eval g) = Eval \st -> case f st of
-                                         (Result (atob, st)) = case g st of
-                                                                  (Result (a, st)) = Result (atob a, st)
-                                                                  (Error m)         = Error m
-                                         (Error m)           = Error m
-
-instance Monad Eval where
-  //bind :: (Eval a) (a-> Eval b) -> Eval b
-    bind (Eval g) atomb = Eval \st -> case g st of 
-                                        (Error m)        = Error m
-                                        (Result (a, st)) = unEval (atomb a) st
-/*
-
-store :: Ident (Eval a) -> Eval a | TC a
-store i (Eval e) = Eval \st -> case e st of
-                                   (Left m)        = Left m 
-                                   (Right (a, st)) = Right (a, 'Map'.put i (dynamic a) st)                                
-
-read :: Ident -> Eval a | TC a
-read i = Eval \st -> case 'Map'.get i st of
-                                  Just (x :: a^) = Right (x, st)
-                                  Just _ = Left ("The type of variable " +++ i +++ "does not match")
-                                  _ = Left ("Variable " +++ i +++ " could not be found")*/
-                                  
-//store :: (Eval a) -> Eval a
-//store 
-
-Start = "True"
+Start = eval (Wait bm :. Lock bm bm) initialState
