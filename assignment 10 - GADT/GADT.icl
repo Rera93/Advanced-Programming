@@ -112,19 +112,22 @@ eval (WhileContainerBelow bma action) s = case s.craneOnQuay of
 																Result s` = eval (WhileContainerBelow bma action) s`
 
 // 3. Printing 
+
+indent8 :: [String]
+indent8 = ["        "]
                                                  
 class printing a :: a [String] -> [String]
 
 instance printing (Action a b) where
-      printing (MoveToShip bma bmb) c            = c ++ ["        MoveToShip"]
-      printing (MoveToQuay bma bmb) c            = c ++ ["        MoveToQuay"]
-      printing (MoveUp     bma bmb) c            = c ++ ["        MoveUp"]
-      printing (MoveDown   bma bmb) c            = c ++ ["        MoveDown"]
-      printing (Lock       bma bmb) c            = c ++ ["        Lock"]
-      printing (UnLock     bma bmb) c            = c ++ ["        UnLock"]
-      printing (Wait       bm)      c            = c ++ ["        Wait"]
-      printing (actionL :. actionR) c            = [concat (printing actionL c) +++ ":.\n" +++ concat (printing actionR c)]
-      printing (WhileContainerBelow bm action) c = c ++ [(unlines (["\nWhileContainerBelow \n    ("] ++ (printing action c) ++ ["    )"]))]
+      printing (MoveToShip bma bmb) c            = c ++ ["MoveToShip"]
+      printing (MoveToQuay bma bmb) c            = c ++ ["MoveToQuay"]
+      printing (MoveUp     bma bmb) c            = c ++ ["MoveUp"]
+      printing (MoveDown   bma bmb) c            = c ++ ["MoveDown"]
+      printing (Lock       bma bmb) c            = c ++ ["Lock"]
+      printing (UnLock     bma bmb) c            = c ++ ["UnLock"]
+      printing (Wait       bm)      c            = c ++ ["Wait"]
+      printing (actionL :. actionR) c            = c ++ [concat (indent8 ++ (printing actionL c)) +++ ":.\n" +++ concat (indent8 ++ (printing actionR c))]
+      printing (WhileContainerBelow bm action) c = c ++ [(concat (["\n  WhileContainerBelow \n    (   "] ++ indent8 ++ (printing action c) ++ ["\n    )\n"]))]
 
 
 moveFromQuayToShip = ( MoveDown bm bm :. 
