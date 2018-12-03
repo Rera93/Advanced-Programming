@@ -41,18 +41,6 @@ import Text => qualified join
 :: High = High
 :: Low  = Low
 
-/*:: Expr a
-	= Lit a
-	| E. e: Plus (BM a e) (Expr e) (Expr e) & + e
-	
-:: Phantom a = P Int
-	
-evalExpr :: (Expr a) -> Maybe a
-evalExpr (Lit a) = Just a
-evalExpr (Plus bm l r) = bm.t (evalExpr l + evalExpr r)
-*/
-//Start = evalExpr (Plus bm (Lit 41) (Lit 1))
-
 :: BM a b = { f :: a -> b, t :: b -> a} // bimap 
 
 bm :: BM a a
@@ -89,7 +77,7 @@ eval (MoveToQuay bma bmb) s = Result ({State | s & craneOnQuay = True})
 eval (MoveUp bma bmb) s = Result ({State | s & craneUp = True})
 eval (MoveDown bma bmb) s = Result ({State | s & craneUp = False})
 eval (Lock bma bmb) s = case s.locked of 
-							Just a = Error "The crane is already locked!"
+							Just a = Error "The crane is already locked!"  // could be Result s
 							Nothing = case s.craneOnQuay of
 											True = case s.onQuay of
 													[x:xs] = Result ({State | s & onQuay = xs, locked = Just x })
@@ -98,7 +86,7 @@ eval (Lock bma bmb) s = case s.locked of
 													[x:xs] = Result ({State | s & onShip = xs, locked = Just x })
 													[]     = Result s
 eval (UnLock bma bmb) s = case s.locked of 
-							Nothing = Error "The crane is already un-locked!"
+							Nothing = Error "The crane is already un-locked!" // could be Result s
 							Just a = case s.craneOnQuay of
 											True = case s.onQuay of 
 														[] = Result ({State | s & onQuay = [a], locked = Nothing })
@@ -111,18 +99,17 @@ eval (Wait bma) s = Result s
 eval (actionL :. actionR) s = case eval actionL s of
 										(Result r) =  eval actionR r
 										(Error m)  =  Error m
-eval (WhileContainerBelow bma action) s = case action of
-                                                 (actionL :. actionR) = eval (actionL :. actionR) s
-                                                 _ = Result s
-                                                /* case s.craneOnQuay of
-										True = case s.onQuay of
-													[] = Result s
-													xs = case eval action s of 
+eval (WhileContainerBelow bma action) s = case s.craneOnQuay of
+										       True  = case s.onQuay of
+													[]     = Result s
+													[x:xs] = case eval action s of
+																Error m   = Error m
 																Result s` = eval (WhileContainerBelow bma action) s`
-										_    = case s.onShip of
+										       False = case s.onShip of
 													[] = Result s
-													xs = case eval action s of
-																Result s` = eval (WhileContainerBelow bma action) s`*/
+													[x:xs] = case eval action s of
+													            Error m   = Error m 
+																Result s` = eval (WhileContainerBelow bma action) s`
 
 // 3. Printing 
                                                  
@@ -136,10 +123,9 @@ instance printing (Action a b) where
       printing (Lock       bma bmb) c            = c ++ ["        Lock"]
       printing (UnLock     bma bmb) c            = c ++ ["        UnLock"]
       printing (Wait       bm)      c            = c ++ ["        Wait"]
-      printing (actionL :. actionR) c            = [(foldr (\x acc -> x +++ acc) "" (printing actionL c)) +++ ":."] ++ ["\n"] ++ (printing actionR c)
+      printing (actionL :. actionR) c            = [concat (printing actionL c) +++ ":.\n" +++ concat (printing actionR c)]
       printing (WhileContainerBelow bm action) c = c ++ [(unlines (["\nWhileContainerBelow \n    ("] ++ (printing action c) ++ ["    )"]))]
-      
-// Problem with printing (2 extra new lines applied to the last action)
+
 
 moveFromQuayToShip = ( MoveDown bm bm :. 
                        Lock bm bm :.
@@ -162,4 +148,4 @@ Start = printing (WhileContainerBelow bm  (moveFromQuayToShip)) []
 
 // Failed Test Case
 
-//Start = eval (WhileContainerBelow bm (MoveDown bm bm :. Lock bm bm :. MoveUp bm bm :. MoveToShip bm bm :. MoveDown bm bm)) initialState
+//Start = eval (WhileContainerBelow bm (MoveDown bm bm :. Lock bm bm :. MoveUp bm bm :. MoveToShip bm bm :. MoveDown bm bm :. UnLock bm bm :. MoveUp bm bm :. MoveToQuay bm bm)) initialState
