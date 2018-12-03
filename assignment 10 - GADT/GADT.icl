@@ -50,8 +50,6 @@ bm = { f = id, t = id }
 
 :: ErrorOrResult e r = Error e | Result r
 
-// Error to be produced when an action cannot be executed in the current state.
-
 :: State = { onShip      :: [Container]
            , onQuay      :: [Container]
            , craneUp     :: Bool
@@ -72,30 +70,34 @@ initialState = { onShip      = []
 :: Fail :== String 
 
 eval :: (Action a b) State -> ErrorOrResult Fail State   
-eval (MoveToShip bma bmb) s = Result ({State | s & craneOnQuay = False})
-eval (MoveToQuay bma bmb) s = Result ({State | s & craneOnQuay = True})
-eval (MoveUp bma bmb) s = Result ({State | s & craneUp = True})
-eval (MoveDown bma bmb) s = Result ({State | s & craneUp = False})
-eval (Lock bma bmb) s = case s.locked of 
-							Just a = Error "The crane is already locked!"  // could be Result s
-							Nothing = case s.craneOnQuay of
-											True = case s.onQuay of
-													[x:xs] = Result ({State | s & onQuay = xs, locked = Just x })
-													[]     = Result s
-											False = case s.onShip of
-													[x:xs] = Result ({State | s & onShip = xs, locked = Just x })
-													[]     = Result s
-eval (UnLock bma bmb) s = case s.locked of 
-							Nothing = Error "The crane is already un-locked!" // could be Result s
-							Just a = case s.craneOnQuay of
-											True = case s.onQuay of 
-														[] = Result ({State | s & onQuay = [a], locked = Nothing })
-														xs = Result ({State | s & onQuay = [a:xs], locked = Nothing })
-											False = case s.onShip of
-														[] = Result ({State | s & onShip = [a], locked = Nothing })
-														xs = Result ({State | s & onShip = [a:xs], locked = Nothing })
+eval (MoveToShip bma bmb) s = case s.craneOnQuay of 
+                                  True  = Result ({State | s & craneOnQuay = False})
+                                  False = Error "The crane is already on Ship!"
+eval (MoveToQuay bma bmb) s = case s.craneOnQuay of
+                                  False = Result ({State | s & craneOnQuay = True})
+                                  True  = Error "The crane is already on Quay!"
+eval (MoveUp bma bmb)     s = Result ({State | s & craneUp = True})
+eval (MoveDown bma bmb)   s = Result ({State | s & craneUp = False})
+eval (Lock bma bmb)       s       = case s.locked of 
+							      Just a  = Error "The crane is already locked!"  // could be Result s
+							      Nothing = case s.craneOnQuay of
+											    True  = case s.onQuay of
+													        [x:xs] = Result ({State | s & onQuay = xs, locked = Just x })
+													        []     = Result s
+											    False = case s.onShip of
+													        [x:xs] = Result ({State | s & onShip = xs, locked = Just x })
+													        []     = Result s
+eval (UnLock bma bmb)     s = case s.locked of 
+							      Nothing = Error "The crane is already un-locked!" // could be Result s
+							      Just a  = case s.craneOnQuay of
+											    True  = case s.onQuay of 
+												  		    [] = Result ({State | s & onQuay = [a], locked = Nothing })
+														    xs = Result ({State | s & onQuay = [a:xs], locked = Nothing })
+											    False = case s.onShip of
+														    [] = Result ({State | s & onShip = [a], locked = Nothing })
+														    xs = Result ({State | s & onShip = [a:xs], locked = Nothing })
 											
-eval (Wait bma) s = Result s
+eval (Wait bma)           s = Result s
 eval (actionL :. actionR) s = case eval actionL s of
 										(Result r) =  eval actionR r
 										(Error m)  =  Error m
@@ -106,7 +108,7 @@ eval (WhileContainerBelow bma action) s = case s.craneOnQuay of
 																Error m   = Error m
 																Result s` = eval (WhileContainerBelow bma action) s`
 										       False = case s.onShip of
-													[] = Result s
+													[]     = Result s
 													[x:xs] = case eval action s of
 													            Error m   = Error m 
 																Result s` = eval (WhileContainerBelow bma action) s`
@@ -142,13 +144,9 @@ moveFromQuayToShip = ( MoveDown bm bm :.
                        MoveToQuay bm bm
                      )
                      
-// Passed Test Cases
+// Test Cases
 
-Start = printing (WhileContainerBelow bm  (moveFromQuayToShip)) []
-//Start = eval (WhileContainerBelow bm  (moveFromQuayToShip)) initialState
+//Start = printing (WhileContainerBelow bm  (moveFromQuayToShip)) []
+Start = eval (WhileContainerBelow bm  (moveFromQuayToShip)) initialState
 //Start = eval (WhileContainerBelow bm (Lock bm bm :. Lock bm bm)) initialState
 //Start = eval (WhileContainerBelow bm (UnLock bm bm :. MoveUp bm bm :. MoveDown bm bm :. UnLock bm bm)) initialState
-
-// Failed Test Case
-
-//Start = eval (WhileContainerBelow bm (MoveDown bm bm :. Lock bm bm :. MoveUp bm bm :. MoveToShip bm bm :. MoveDown bm bm :. UnLock bm bm :. MoveUp bm bm :. MoveToQuay bm bm)) initialState
