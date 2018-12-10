@@ -79,7 +79,7 @@ instance Expr Show where
 instance Var Show where 
   (=.) (S v) (S i) = S \c -> v [" = " : i c]
   var (S va)       = S \c -> ["Var " : va c]  
-  int (S l) f      = S \c -> ["Int " : l c] ++ ["\n"] ++ runShow (f (S \c -> ["n" : c])) c
+  int (S l) f      = S \c -> ["Int " : l c] ++ [" \\"] ++ ["\n"] ++ runShow (f (S \c -> ["n" : c])) c
   
 // 3. Evaluation
 
@@ -110,7 +110,7 @@ initialState = { onShip      = []
 runEval (E a) = a
 
 instance Expr Evaluator where
-  ContainersBelow  = pure 1 
+  ContainersBelow  = E \s -> Result (length s.onQuay, s)
   Lit a            = pure a
   (<.) (E a) (E b) = pure (<) <*> (E a) <*> (E b) 
   (>.) (E a) (E b) = pure (>) <*> (E a) <*> (E b)
@@ -163,7 +163,7 @@ instance Action Evaluator where
                                                         (Error m) = Error m
                                                         Result (Step, s``) = Result (Step, s``)
   While (E e) (E a) = E \s -> case e s of
-                               (Result (False, _)) = Error "Condition is false"  
+                               (Result (False, _)) = Result (Step, s) //Error "Condition is false"  
                                (Result (True, _))  = case s.craneOnQuay of
                                                         True = case s.onQuay of
                                                                  []     = Result (Step, s)
@@ -226,11 +226,11 @@ loadShip1 =
         UnLock:.
         MoveUp:. 
         MoveToQuay:.
-        n =. var n +. Lit -1
+        n =. var n +. Lit 1
        )
        
 	
 //Start = concat (runShow loadShip [])
-Start = concat (runShow loadShip1 [])
+//Start = concat (runShow loadShip1 [])
 //Start = runEval (ContainersBelow >. Lit 0) initialState
-//Start = runEval loadShip initialState
+Start = runEval loadShip initialState
