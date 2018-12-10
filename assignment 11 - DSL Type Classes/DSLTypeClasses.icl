@@ -49,37 +49,38 @@ class Expr v where
 	(+.) infix 4    :: (v t) (v t) -> v t     | + t
 
 class Var v where // need feedback
-    (=.) infixr 2 :: (v t) (v Int) -> v (Step a a) 
+    (=.) infixr 2 :: (v Var) (v Int) -> v (Step a a) 
     var           :: (v Var) -> v Int
-    int           :: (v t) ((v u) -> (v (Step a a))) -> v (Step a a) 
+    int           :: (v Int) ((v Var) -> v (Step a a)) -> v (Step a a) 
+
 
 // 2. Show
 
-:: Show a = S ([String] -> [String])
+:: Show a = S (Int [String] -> [String])
 runShow (S a) = a
 
 instance Action Show where
-  MoveToShip        = S \c -> ["MoveToShip" : c]
-  MoveToQuay        = S \c -> ["MoveToQuay" : c]
-  MoveUp            = S \c -> ["MoveUp" : c]
-  MoveDown          = S \c -> ["MoveDown" : c]
-  Lock              = S \c -> ["Lock" : c]
-  UnLock            = S \c -> ["UnLock" : c]
-  Wait              = S \c -> ["Wait" : c]
-  (:.) (S a) (S b)  = S \c -> a [":.\n    " : b c]
-  While (S e) (S a) = S \c -> ["While ( " : e c] ++ [" ) (\n    " : a c] ++ ["\n  )"]
+  MoveToShip        = S \_ c -> ["MoveToShip" : c]
+  MoveToQuay        = S \_ c -> ["MoveToQuay" : c]
+  MoveUp            = S \_ c -> ["MoveUp" : c]
+  MoveDown          = S \_ c -> ["MoveDown" : c]
+  Lock              = S \_ c -> ["Lock" : c]
+  UnLock            = S \_ c -> ["UnLock" : c]
+  Wait              = S \_ c -> ["Wait" : c]
+  (:.) (S a) (S b)  = S \i c -> a i [":.\n    " : b i c]
+  While (S e) (S a) = S \i c -> ["While ( " : e i [") (\n": a i ["\n )":c]]]
   
 instance Expr Show where
-  ContainersBelow  = S \c -> ["ContainersBelow" : c]
-  Lit t            = S \c -> [toString t : c]
-  (<.) (S a) (S b) = S \c -> a [" < " : b c]
-  (>.) (S a) (S b) = S \c -> a [" > " : b c]
-  (+.) (S a) (S b) = S \c -> a [" + " : b c]
+  ContainersBelow  = S \_ c -> ["ContainersBelow" : c]
+  Lit t            = S \_ c -> [toString t : c]
+  (<.) (S a) (S b) = S \i c -> a i [" < " : b i c]
+  (>.) (S a) (S b) = S \i c -> a i [" > " : b i c]
+  (+.) (S a) (S b) = S \i c -> a i [" + " : b i c]
   
 instance Var Show where 
-  (=.) (S v) (S i) = S \c -> v [" = " : i c]
-  var (S va)       = S \c -> ["Var " : va c]  
-  int (S l) f      = S \c -> ["Int " : l c] ++ [" \\"] ++ ["\n"] ++ runShow (f (S \c -> ["n" : c])) c
+  (=.) (S v) (S d) = S \i c -> v i [" = " : d i c]
+  var (S va)       = S va  
+  int (S l) f      = S \i c -> ["Int " : l i [" \\v",toString i,".\n":runShow (f (S \_ c -> ["v", toString i:c])) (i + 1) c]]
   
 // 3. Evaluation
 
@@ -89,6 +90,7 @@ instance Var Show where
            , craneOnQuay :: Bool
            , locked      :: Maybe Container
            , store       :: 'Map'.Map Int Int
+           , freshVar    :: Int
            }
 
 :: Container :== String
@@ -100,6 +102,7 @@ initialState = { onShip      = []
                , craneOnQuay = True
                , locked      = Nothing
                , store       = 'Map'.newMap
+               , freshVar    = 0
                }
                
 
@@ -112,17 +115,23 @@ runEval (E a) = a
 instance Expr Evaluator where
   ContainersBelow  = E \s -> Result (length s.onQuay, s)
   Lit a            = pure a
-  (<.) (E a) (E b) = pure (<) <*> (E a) <*> (E b) 
+  (<.) a b = (<) <$> a <*> b 
   (>.) (E a) (E b) = pure (>) <*> (E a) <*> (E b)
   (+.) (E a) (E b) = pure (+) <*> (E a) <*> (E b) 
   
-/*instance Var Evaluator where
-  var (E v) = E	\s -> case v s of
-                          (Error m) = Error m
-                          (Result (Int, s)) = read                         
-  //(=.) (E v) (E i) = E \s -> case var s of 
-  int (E l) f = */
-  
+instance Var Evaluator where
+  var v = v >>= \vr->E (read vr)
+ // var v = v >>= E o read
+ // var (E v) = E	\s -> case v s of 
+   //                        Result (Var i, s) = case 'Map'.get i s.store of
+     //                                           Just val  = Result (val, s)
+       //                                         Nothing = Error "Variable not found!"                         
+  (=.) (E v) (E i) = E \s -> case i s of
+                                 Result (val, s) -> case v s of
+                                                        Result (Var i, s) = Result (Step, {s & store = 'Map'.put 1 val s.store})
+  int (E l) f = E \s -> case l s of
+                            Result (cont, s) = /*runEval (f (E l)) s*/ Result (Step, {s & store = 'Map'.put 1 cont s.store})    
+
 read :: Var State -> ErrorOrResult Fail (Int, State)
 read (Var i) s = case 'Map'.get i s.store of
                            Just b  = Result (b, s)
@@ -215,6 +224,7 @@ loadShip =
        
 loadShip1 =
     int ContainersBelow \n.
+//    int (Lit 42) \_.
     While (var n >. Lit 0) (
         MoveDown:.
         Lock:.
@@ -231,6 +241,6 @@ loadShip1 =
        
 	
 //Start = concat (runShow loadShip [])
-//Start = concat (runShow loadShip1 [])
-//Start = runEval (ContainersBelow >. Lit 0) initialState
-Start = runEval loadShip initialState
+Start = concat (runShow loadShip1 0 [])
+//Start = runEval (int ContainersBelow \n -> (MoveDown :. Lock)) initialState
+//Start = runEval loadShip1 initialState
