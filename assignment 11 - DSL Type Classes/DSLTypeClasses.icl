@@ -115,30 +115,23 @@ runEval (E a) = a
 instance Expr Evaluator where
   ContainersBelow  = E \s -> Result (length s.onQuay, s)
   Lit a            = pure a
-  (<.) a b = (<) <$> a <*> b 
+  (<.) a b         = (<) <$> a <*> b // alternative approach to remove pure 
   (>.) (E a) (E b) = pure (>) <*> (E a) <*> (E b)
   (+.) (E a) (E b) = pure (+) <*> (E a) <*> (E b) 
   
 instance Var Evaluator where
-  var v = v >>= \vr->E (read vr)
- // var v = v >>= E o read
- // var (E v) = E	\s -> case v s of 
-   //                        Result (Var i, s) = case 'Map'.get i s.store of
-     //                                           Just val  = Result (val, s)
-       //                                         Nothing = Error "Variable not found!"                         
-  (=.) (E v) (E i) = E \s -> case i s of
-                                 Result (val, s) -> case v s of
-                                                        Result (Var i, s) = Result (Step, {s & store = 'Map'.put 1 val s.store})
+  var v    = v >>= \vVal -> read vVal                      
+  (=.) v i = v >>= \vVal -> i >>= \iVal -> write vVal iVal
   int (E l) f = E \s -> case l s of
                             Result (cont, s) = /*runEval (f (E l)) s*/ Result (Step, {s & store = 'Map'.put 1 cont s.store})    
 
-read :: Var State -> ErrorOrResult Fail (Int, State)
-read (Var i) s = case 'Map'.get i s.store of
+read :: Var -> Evaluator Int
+read (Var i) = E \s -> case 'Map'.get i s.store of
                            Just b  = Result (b, s)
                            Nothing = Error "Variable not found!"
                            
-write :: Var Int State -> ErrorOrResult Fail (Int, State)
-write (Var i) val s =  Result (val, {s & store = 'Map'.put i val s.store}) 
+write :: Var Int -> Evaluator (Step a a)
+write (Var i) val =  E \s -> Result (Step, {s & store = 'Map'.put i val s.store}) 
                      
 
   
@@ -241,6 +234,6 @@ loadShip1 =
        
 	
 //Start = concat (runShow loadShip [])
-Start = concat (runShow loadShip1 0 [])
+//Start = concat (runShow loadShip1 0 [])
 //Start = runEval (int ContainersBelow \n -> (MoveDown :. Lock)) initialState
-//Start = runEval loadShip1 initialState
+Start = runEval loadShip1 initialState
