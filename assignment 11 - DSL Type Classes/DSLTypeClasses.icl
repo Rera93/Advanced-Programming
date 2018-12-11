@@ -122,8 +122,7 @@ instance Expr Evaluator where
 instance Var Evaluator where
   var v    = v >>= \vVal -> read vVal                      
   (=.) v i = v >>= \vVal -> i >>= \iVal -> write vVal iVal
-  int (E l) f = E \s -> case l s of
-                            Result (cont, s) = /*runEval (f (E l)) s*/ Result (Step, {s & store = 'Map'.put 1 cont s.store})    
+  int c f  = c >>= \conts -> E \s -> runEval (f (pure (Var s.freshVar))) {s & freshVar = inc s.freshVar, store = 'Map'.put s.freshVar conts s.store}
 
 read :: Var -> Evaluator Int
 read (Var i) = E \s -> case 'Map'.get i s.store of
@@ -132,9 +131,7 @@ read (Var i) = E \s -> case 'Map'.get i s.store of
                            
 write :: Var Int -> Evaluator (Step a a)
 write (Var i) val =  E \s -> Result (Step, {s & store = 'Map'.put i val s.store}) 
-                     
-
-  
+                       
 instance Action Evaluator where
   MoveToShip   = E \s -> Result (Step, {State | s & craneOnQuay = False})  
   MoveToQuay   = E \s -> Result (Step, {State | s & craneOnQuay = True})
@@ -229,11 +226,12 @@ loadShip1 =
         UnLock:.
         MoveUp:. 
         MoveToQuay:.
-        n =. var n +. Lit 1
+        n =. var n +. Lit -1
        )
-       
+
+// Tests       
 	
-//Start = concat (runShow loadShip [])
+//Start = concat (runShow loadShip 0 [])
 //Start = concat (runShow loadShip1 0 [])
-//Start = runEval (int ContainersBelow \n -> (MoveDown :. Lock)) initialState
+//Start = runEval loadShip initialState
 Start = runEval loadShip1 initialState
