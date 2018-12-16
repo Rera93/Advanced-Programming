@@ -109,4 +109,4 @@ instance prop (For a p) where
     holds (f For list) p = diagonal [holds (f a) {p & info = [" ", string{|*|} a : p.info]} \\ a <- list]
 
 // test p = check 25 (holds p prop0)
-Start = ["pUpper: " : test (pUpper For ['a'..'z'])] 
+Start = ["pUpper: " : check 25 (holds (pUpper For ['a'..'z']) prop0)] 
