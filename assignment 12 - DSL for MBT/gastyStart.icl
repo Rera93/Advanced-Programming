@@ -110,10 +110,20 @@ instance prop (For a p) where
 
 // 2. Input Selection
 
-:: InputSelection p = (==>) infix 6 Bool p & prop p  
+:: InputSelection p = (==>) infix 3 Bool p & prop p  
 
 instance prop (InputSelection p) where
     holds (c ==> a) p = if c (holds a p) []
+    
+// 3. Tracing the Arguments of Equality
+
+:: Equal a = (=.=) infix 4 a a & testArg a & Eq a
+
+instance prop (Equal a) where
+    holds (l =.= r) p =  [{p & bool = l == r
+                             , info = [" Left and Right are not Equal ", string {|*|} l +++ " != " +++ string {|*|} r : p.info]}] 
+
 
 //Start = ["pUpper: " : check 25 (holds (pUpper For ['a'..'z']) prop0)] 
-Start = ["pUpper lower : " : check 25 (holds (\c -> isLower c ==> pUpper c) prop0)] 
+//Start = ["pUpper lower : " : check 25 (holds (\c -> isLower c ==> pUpper c) prop0)] 
+Start = ["pEq : " : check 1000 (holds (\i -> abs i < 10 ==> prod [1..i] =.= 0) prop0)] 
