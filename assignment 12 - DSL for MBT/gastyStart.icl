@@ -1,3 +1,6 @@
+// Brigel Pineti s1005549
+// Tim Turksema s1013838
+
 implementation module gastyStart
 
 /*
@@ -13,7 +16,7 @@ implementation module gastyStart
 import StdEnv, StdGeneric, Data.GenEq
 
 test :: p -> [String] | prop p
-test p = check 25 (holds p prop0)
+test p = check 1000 (holds p prop0)
 
 check :: Int [Prop] -> [String]
 check n [] = ["Proof\n"]
@@ -95,18 +98,22 @@ where
 	rev []    accu = accu
 	rev [x:r] accu = rev r [x:accu]
 	
-// 1 Specific Test Cases
+// 1. Specific Test Cases
 
 pUpper :: Char -> Bool
 pUpper c = not (c == toUpper c)
-
-/*(For) infix 6 :: (a->b) [a] -> ((a->b),[a]) | prop b
-(For) p as = (p, as)*/
 
 :: For a p = (For) infix 6 (a -> p) [a] & prop p & testArg a
 
 instance prop (For a p) where
     holds (f For list) p = diagonal [holds (f a) {p & info = [" ", string{|*|} a : p.info]} \\ a <- list]
 
-// test p = check 25 (holds p prop0)
-Start = ["pUpper: " : check 25 (holds (pUpper For ['a'..'z']) prop0)] 
+// 2. Input Selection
+
+:: InputSelection p = (==>) infix 6 Bool p & prop p  
+
+instance prop (InputSelection p) where
+    holds (c ==> a) p = if c (holds a p) []
+
+//Start = ["pUpper: " : check 25 (holds (pUpper For ['a'..'z']) prop0)] 
+Start = ["pUpper lower : " : check 25 (holds (\c -> isLower c ==> pUpper c) prop0)] 
