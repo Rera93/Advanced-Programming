@@ -14,6 +14,7 @@ implementation module gastyStart
 */
 
 import StdEnv, StdGeneric, Data.GenEq
+import cashModel
 
 test :: p -> [String] | prop p
 test p = check 1000 (holds p prop0)
@@ -114,16 +115,54 @@ instance prop (For a p) where
 
 instance prop (InputSelection p) where
     holds (c ==> a) p = if c (holds a p) []
-    
+
 // 3. Tracing the Arguments of Equality
 
-:: Equal a = (=.=) infix 4 a a & testArg a & Eq a
+:: Equality a = (=.=) infix 1 a a & == a & prop a & testArg a
 
-instance prop (Equal a) where
-    holds (l =.= r) p =  [{p & bool = l == r
-                             , info = [" Left and Right are not Equal ", string {|*|} l +++ " != " +++ string {|*|} r : p.info]}] 
+instance prop (Equality a) where
+    holds (l =.= r) p = [{p & bool = (l == r), info = [" Left and Right are not Equal ", string {|*|} l +++ " != " +++ string {|*|} r : p.info]}]
+    
+// 4. Testing (Euro)
+
+derive gen Action, Euro, Product, []
+derive string Action, Euro, Product, []
+derive bimap []
+
+pPlusCommutative :: Euro Euro -> Bool 
+pPlusCommutative euroL euroR = euroL + euroR == euroR + euroL
+
+//Start = ["pPlusCommutative :" : test (\x y -> pPlusCommutative x y)]
+// ["pPlusCommutativity: ","Passed"]
+
+pMinusCommutative :: Euro Euro -> Bool
+pMinusCommutative euroL euroR = euroL - euroR == ~(euroR - euroL)
+
+//Start = ["pMinusCommutative :" : test (\x y -> pMinusCommutative x y)]
+// ["pMinusCommutativityAbs: ","Fail for: ","{Euro|euro = 1  cent = 0 }"," ","{Euro|euro = 1  cent = -9223372036 }"," ",""]
+
+pPlusZeroId :: Euro -> Bool
+pPlusZeroId euro = zero + euro == euro
+
+//Start = ["pPlusZeroId :" : test (\x -> pPlusZeroId x)]
+// ["pPlusZeroId: ","Fail for: ","{Euro|euro = 0  cent = 1 }"," ",""]
+
+pMinusZeroId :: Euro -> Bool
+pMinusZeroId euro = zero - euro == ~euro
+
+//Start = ["pMinusZeroId :" : test (\x -> pPlusCommutative x)]
+// ["pMinusZeroId: ","Passed"]
+
+pDoubleNeg :: Euro -> Bool
+pDoubleNeg euro = euro == ~(~euro)
+
+//Start = ["pDoubleNeg :" : test (\x -> pDoubleNeg x)]
+// ["pDoubleNeg: ","Passed"]
+
+// 5. Testing the Remove Action in the Model
 
 
 //Start = ["pUpper: " : check 25 (holds (pUpper For ['a'..'z']) prop0)] 
-//Start = ["pUpper lower : " : check 25 (holds (\c -> isLower c ==> pUpper c) prop0)] 
-Start = ["pEq : " : check 1000 (holds (\i -> abs i < 10 ==> prod [1..i] =.= 0) prop0)] 
+//Start = ["pUpper lower : " : check 25 (holds (\c -> isLower c ==> pUpper c) prop0)]
+//Start = ["pEq :" : test (\c -> isLower c ==> pUpper c =.= isLower c)]
+Start = holds (pUpper 'a' =.= isLower 'A') prop0
