@@ -13,7 +13,7 @@ implementation module gastyStart
 import StdEnv, StdGeneric, Data.GenEq
 
 test :: p -> [String] | prop p
-test p = check 1000 (holds p prop0)
+test p = check 25 (holds p prop0)
 
 check :: Int [Prop] -> [String]
 check n [] = ["Proof\n"]
@@ -94,3 +94,19 @@ where
 	
 	rev []    accu = accu
 	rev [x:r] accu = rev r [x:accu]
+	
+// 1 Specific Test Cases
+
+pUpper :: Char -> Bool
+pUpper c = not (c == toUpper c)
+
+/*(For) infix 6 :: (a->b) [a] -> ((a->b),[a]) | prop b
+(For) p as = (p, as)*/
+
+:: For a p = (For) infix 6 (a -> p) [a] & prop p & testArg a
+
+instance prop (For a p) where
+    holds (f For list) p = diagonal [holds (f a) {p & info = [" ", string{|*|} a : p.info]} \\ a <- list]
+
+// test p = check 25 (holds p prop0)
+Start = ["pUpper: " : test (pUpper For ['a'..'z'])] 
