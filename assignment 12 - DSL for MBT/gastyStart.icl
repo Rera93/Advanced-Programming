@@ -114,6 +114,14 @@ instance prop (For a p) where
 
 instance prop (InputSelection p) where
     holds (c ==> a) p = if c (holds a p) []
+// 3. Tracing the Arguments of Equality
+
+:: Equality a = (=.=) infix 1 a a & == a & prop a & testArg a
+
+instance prop (Equality a) where
+    holds (l =.= r) p = [{p & bool = (l == r), info = [string{|*|} l : string{|*|} r : p.info]}]
 
 //Start = ["pUpper: " : check 25 (holds (pUpper For ['a'..'z']) prop0)] 
-Start = ["pUpper lower : " : check 25 (holds (\c -> isLower c ==> pUpper c) prop0)] 
+//Start = ["pUpper lower : " : check 25 (holds (\c -> isLower c ==> pUpper c) prop0)]
+Start = holds (pUpper 'a' =.= isLower 'A') prop0
+
