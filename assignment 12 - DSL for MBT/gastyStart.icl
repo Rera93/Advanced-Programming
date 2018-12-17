@@ -13,7 +13,7 @@ implementation module gastyStart
 	Execute with "Basic values only" option
 */
 
-import StdEnv, StdGeneric, Data.GenEq
+import StdEnv, StdGeneric, Data.GenEq, Data.List
 import cashModel
 
 test :: p -> [String] | prop p
@@ -118,15 +118,16 @@ instance prop (InputSelection p) where
 
 // 3. Tracing the Arguments of Equality
 
-:: Equality a = (=.=) infix 1 a a & == a & prop a & testArg a
+:: Equality a = (=.=) infix 1 a a & prop a & testArg a
 
 instance prop (Equality a) where
-    holds (l =.= r) p = [{p & bool = (l == r), info = [" Left and Right are not Equal ", string {|*|} l +++ " != " +++ string {|*|} r : p.info]}]
+    holds (l =.= r) p = [{p & bool = (l === r), info = [" Left and Right are not Equal ", string {|*|} l +++ " != " +++ string {|*|} r : p.info]}]
     
 // 4. Testing (Euro)
 
-derive gen Action, Euro, Product, []
-derive string Action, Euro, Product, []
+derive class testArg Product
+derive gen Action, Euro, []
+derive string Action, Euro, []
 derive bimap []
 
 pPlusCommutative :: Euro Euro -> Bool 
@@ -160,9 +161,15 @@ pDoubleNeg euro = euro == ~(~euro)
 // ["pDoubleNeg: ","Passed"]
 
 // 5. Testing the Remove Action in the Model
-
+pValueAfterRem :: [Product] Product -> Bool
+pValueAfterRem cart p = case (model cart (Rem p)) of 
+								(l, _) = (model l Pay) == case isMember p cart of
+															True = case model cart Pay of 
+																	(pl, [val]) = (pl, [val - (euro p)])
+															False = model cart Pay 
 
 //Start = ["pUpper: " : check 25 (holds (pUpper For ['a'..'z']) prop0)] 
 //Start = ["pUpper lower : " : check 25 (holds (\c -> isLower c ==> pUpper c) prop0)]
 //Start = ["pEq :" : test (\c -> isLower c ==> pUpper c =.= isLower c)]
-Start = holds (pUpper 'a' =.= isLower 'A') prop0
+//Start = ["pValueAfterRem: " : test pValueAfterRem]
+Start = test (pUpper 'a' =.= isLower 'A')
