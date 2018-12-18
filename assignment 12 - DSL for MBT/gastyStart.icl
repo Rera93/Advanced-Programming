@@ -13,7 +13,7 @@ implementation module gastyStart
 	Execute with "Basic values only" option
 */
 
-import StdEnv, StdGeneric, Data.GenEq, StdOverloaded, GenEq, Data.List
+import StdEnv, StdGeneric, Data.GenEq, Data.List
 import cashModel
 derive class testArg Product
 
@@ -192,7 +192,3 @@ pFairRem listP p
       
 Start = ["pFairRem : " : test pFairRem]
 // ["pFairRem : ","Passed"]
-
-
-															
-															
