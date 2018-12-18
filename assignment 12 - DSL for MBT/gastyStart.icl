@@ -13,8 +13,9 @@ implementation module gastyStart
 	Execute with "Basic values only" option
 */
 
-import StdEnv, StdGeneric, Data.GenEq
+import StdEnv, StdGeneric, Data.GenEq, StdOverloaded, GenEq, Data.List
 import cashModel
+derive class testArg Product
 
 test :: p -> [String] | prop p
 test p = check 1000 (holds p prop0)
@@ -24,7 +25,7 @@ check n [] = ["Proof\n"]
 check 0 l  = ["Passed\n"]
 check n [p:x] | p.bool
 	= check (n-1) x
-	= ["Fail for: ":reverse ["\n":p.info]]
+	= ["Fail for: ": reverse ["\n":p.info]]
 
 class prop a where holds :: a Prop -> [Prop]
 
@@ -108,61 +109,90 @@ pUpper c = not (c == toUpper c)
 
 instance prop (For a p) where
     holds (f For list) p = diagonal [holds (f a) {p & info = [" ", string{|*|} a : p.info]} \\ a <- list]
+    
+//Start = ["pUpper : " : check 25 (holds (pUpper For ['a'..'z']) prop0)]
+// ["pUpper : ","Passed"]
+
+//Start = ["pUpper : " : test (pUpper For ['a'..'z'])] 
+// ["pUpper : ","Proof"]
 
 // 2. Input Selection
 
 :: InputSelection p = (==>) infix 3 Bool p & prop p  
 
 instance prop (InputSelection p) where
-    holds (c ==> a) p = if c (holds a p) []
+    holds (c ==> a) p = if c (holds a p) []   
+    
+//Start = ["pUpper lower : " : test (\c -> isLower c ==> pUpper c)]
+// ["pUpper lower : ","Proof"]
 
 // 3. Tracing the Arguments of Equality
 
-:: Equality a = (=.=) infix 1 a a & == a & prop a & testArg a
+:: Equality a = (=.=) infix 1 a a & testArg a
 
 instance prop (Equality a) where
-    holds (l =.= r) p = [{p & bool = (l == r), info = [" Left and Right are not Equal ", string {|*|} l +++ " != " +++ string {|*|} r : p.info]}]
-    
+    holds (l =.= r) p = [{p & bool = gEq{|*|} l r, info = [" Left Side and Right Side are not Equal :>> " +++ string {|*|} l +++ " != " +++ string {|*|} r : p.info]}]
+
 // 4. Testing (Euro)
 
-derive gen Action, Euro, Product, []
-derive string Action, Euro, Product, []
+derive gen Action, Euro, []
+derive string Action, Euro, []
 derive bimap []
 
-pPlusCommutative :: Euro Euro -> Bool 
-pPlusCommutative euroL euroR = euroL + euroR == euroR + euroL
+pPlusCommutative :: Euro Euro -> Equality Euro // Return type: Bool for ==
+pPlusCommutative euroL euroR = euroL + euroR =.= euroR + euroL
 
-//Start = ["pPlusCommutative :" : test (\x y -> pPlusCommutative x y)]
+//Start = ["pPlusCommutative :" : test pPlusCommutative]
 // ["pPlusCommutativity: ","Passed"]
 
-pMinusCommutative :: Euro Euro -> Bool
-pMinusCommutative euroL euroR = euroL - euroR == ~(euroR - euroL)
+pMinusCommutative :: Euro Euro -> Equality Euro // Return type: Bool for ==
+pMinusCommutative euroL euroR = euroL - euroR =.= ~(euroR - euroL)
 
-//Start = ["pMinusCommutative :" : test (\x y -> pMinusCommutative x y)]
-// ["pMinusCommutativityAbs: ","Fail for: ","{Euro|euro = 1  cent = 0 }"," ","{Euro|euro = 1  cent = -9223372036 }"," ",""]
+//Start = ["pMinusCommutative :" : test pMinusCommutative]
+/* ["pMinusCommutativityAbs: ","Fail for: ","{Euro|euro = 1  cent = 0 }"," ","{Euro|euro = 1  cent = -9223372036 }"," ","
+     Left Side and Right Side are not Equal :>> {Euro|euro = -92233720368547758  cent = -8} != {Euro|euro = 92233720368547758  cent = -8}",""]  */
 
-pPlusZeroId :: Euro -> Bool
-pPlusZeroId euro = zero + euro == euro
+pPlusZeroId :: Euro -> Equality Euro // Return type: Bool for ==
+pPlusZeroId euro = zero + euro =.= euro
 
-//Start = ["pPlusZeroId :" : test (\x -> pPlusZeroId x)]
-// ["pPlusZeroId: ","Fail for: ","{Euro|euro = 0  cent = 1 }"," ",""]
+//Start = ["pPlusZeroId :" : test pPlusZeroId]
+/* ["pPlusZeroId: ","Fail for: ","{Euro|euro = 0  cent = 1 }"," ","Left Side and Right Side
+   are not Equal :>> {Euro|euro = 0  cent = 0} != {Euro|euro = 0  cent = 1 }",""]  */
 
-pMinusZeroId :: Euro -> Bool
-pMinusZeroId euro = zero - euro == ~euro
+pMinusZeroId :: Euro -> Equality Euro // Return type: Bool for ==
+pMinusZeroId euro = zero - euro =.= ~euro
 
-//Start = ["pMinusZeroId :" : test (\x -> pPlusCommutative x)]
+//Start = ["pMinusZeroId :" : test pPlusCommutative]
 // ["pMinusZeroId: ","Passed"]
 
-pDoubleNeg :: Euro -> Bool
-pDoubleNeg euro = euro == ~(~euro)
+pDoubleNeg :: Euro -> Equality Euro // Return type: Bool for ==
+pDoubleNeg euro = euro =.= ~(~euro)
 
-//Start = ["pDoubleNeg :" : test (\x -> pDoubleNeg x)]
+//Start = ["pDoubleNeg :" : test pDoubleNeg]
 // ["pDoubleNeg: ","Passed"]
 
 // 5. Testing the Remove Action in the Model
 
+pValueAfterRem :: [Product] Product -> Bool
+pValueAfterRem cart p = case (model cart (Rem p)) of 
+								(l, _) = (model l Pay) == case isMember p cart of
+															True = case model cart Pay of 
+																	(pl, [val]) = (pl, [val - (euro p)])
+															False = model cart Pay 
 
-//Start = ["pUpper: " : check 25 (holds (pUpper For ['a'..'z']) prop0)] 
-//Start = ["pUpper lower : " : check 25 (holds (\c -> isLower c ==> pUpper c) prop0)]
-//Start = ["pEq :" : test (\c -> isLower c ==> pUpper c =.= isLower c)]
-Start = holds (pUpper 'a' =.= isLower 'A') prop0
+//Start = ["pValueAfterRem : " : test pValueAfterRem]
+// ["pValueAfterRem : ","Passed"]
+    
+pFairRem :: [Product] Product -> Bool
+pFairRem listP p 
+  | isMember p listP = euro (snd (model remainingList Pay)) == euro (snd (model (delete p listP) Pay))  
+  | otherwise        = euro (snd (model remainingList Pay)) == euro (snd (model listP Pay))
+  where
+      (remainingList, remainingEuro) = model listP (Rem p)
+      
+Start = ["pFairRem : " : test pFairRem]
+// ["pFairRem : ","Passed"]
+
+
+															
+															
